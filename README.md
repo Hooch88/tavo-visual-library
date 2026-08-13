@@ -46,7 +46,7 @@ Build the package from this repository, then install it in Tavo:
 ### macOS / Linux / Git Bash
 
 ```bash
-./scripts/build.sh
+bash scripts/build.sh
 ```
 
 ### Windows PowerShell
