@@ -4,7 +4,7 @@ A Tavo plugin for reusable **character** and **place** images in AI role-playing
 
 Tavo Visual Library can import images from direct image URLs or supported image-host sharing pages, store a local copy in Tavo, organize entries by chat/campaign/global scope, display saved portraits without advancing the story, and optionally invoke visuals automatically when the narrator mentions a saved character or place.
 
-**Current version: 1.3.0**
+**Current version: 1.3.1**
 
 ## Features
 
@@ -33,7 +33,7 @@ Live testing found that Tavo currently renders place backgrounds reliably when t
 
 The same images work normally from Tavo local storage in the gallery, preview, and chat bubbles, but a local Tavo file path may render as a black background when used through `tavo.chat.update({ background: ... })`.
 
-For that reason, v1.3.0 defaults to:
+For that reason, v1.3.1 defaults to:
 
 - **Source URL — recommended**
 - **Local Tavo copy — experimental**
@@ -67,7 +67,7 @@ Windows PowerShell:
 The resulting package is written to:
 
 ```text
-dist/tavo-visual-library-1.3.0.tpg
+dist/tavo-visual-library-1.3.1.tpg
 ```
 
 Then:
@@ -162,4 +162,4 @@ tests/
 
 ## Development Status
 
-Version 1.3.0 adds campaign-scoped visual continuity. Existing Character Smart Invocation, `/show`, URL/page importing, gallery controls, and source-URL place backgrounds remain part of the tested baseline; Campaign scope should be validated on-device across a StoryState session handoff.
+Version 1.3.1 adds campaign-scoped visual continuity. Existing Character Smart Invocation, `/show`, URL/page importing, gallery controls, and source-URL place backgrounds remain part of the tested baseline; Campaign scope should be validated on-device across a StoryState session handoff.

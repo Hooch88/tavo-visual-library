@@ -1,3 +1,10 @@
+## 1.3.1
+
+- Fixed StoryState-managed campaign controls appearing even though they are intentionally unavailable.
+- Clarified the active campaign and campaign/chat entry counts in the Library UI.
+- Made This Chat → Campaign copy direct and non-destructive with explicit disabled-state messaging.
+- StoryState campaigns are usable immediately without a separate Visual Library create/select step.
+
 # Changelog
 
 ## 1.3.0

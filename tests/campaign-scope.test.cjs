@@ -90,6 +90,10 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'entry.js'), 'utf8
   const html = fs.readFileSync(path.join(__dirname, '..', 'ui', 'panel.html'), 'utf8');
   assert(html.includes('<option value="campaign">Campaign</option>'), 'Campaign scope must be visible in the UI.');
   assert(html.includes('id="tvl-copy-chat-campaign"'), 'UI must offer a safe This Chat → Campaign copy action.');
+  assert(html.includes('.tvl-campaign-manual[hidden]'), 'StoryState-managed chats must truly hide standalone campaign controls.');
+  assert(html.includes('Active campaign:'), 'Campaign UI must explicitly identify the active campaign.');
+  assert(html.includes('No This Chat entries to copy'), 'Disabled copy state must explain why copying is unavailable.');
+  assert(!html.includes('if (!confirm(`Copy ${chatItems.length} This Chat visual reference'), 'Safe campaign copy should not depend on a confirmation dialog.');
   assert(html.includes("const CAMPAIGN_IDENTITY_KEY = 'com.hooch88.tavo.campaignIdentity'"), 'Panel must use the shared StoryState campaign identity bridge.');
   assert(html.includes("const STORYSTATE_KEY = 'storyState.state'"), 'Panel must retain dev6 StoryState compatibility.');
   assert(html.includes("return scope === 'campaign' ? 'global'"), 'Panel must keep campaign files in global physical storage rather than inventing a Tavo campaign file scope.');

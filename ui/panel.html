@@ -46,6 +46,7 @@
           <button id="tvl-clear-campaign" class="tvl-secondary-btn" type="button">Clear</button>
         </div>
         <button id="tvl-copy-chat-campaign" class="tvl-secondary-btn" type="button">Copy This Chat → Campaign</button>
+        <div id="tvl-campaign-copy-note" class="tvl-campaign-copy-note"></div>
         <small>Campaign entries persist across sessions that share the same campaign ID. When StoryState is active, its campaign ID is used automatically; unrelated campaigns stay isolated.</small>
       </div>
       <div class="tvl-toolbar tvl-toolbar-tertiary">
@@ -274,6 +275,18 @@
     display: grid;
     grid-template-columns: 1fr auto auto;
     gap: 8px;
+  }
+  .tvl-campaign-manual[hidden] {
+    display: none !important;
+  }
+  .tvl-campaign-copy-note {
+    font-size: 12px;
+    opacity: 0.78;
+    line-height: 1.4;
+  }
+  #tvl-copy-chat-campaign:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
   .tvl-campaign-manual select {
     width: 100%;
@@ -595,6 +608,7 @@
   const createCampaignBtn = document.getElementById('tvl-create-campaign');
   const clearCampaignBtn = document.getElementById('tvl-clear-campaign');
   const copyChatCampaignBtn = document.getElementById('tvl-copy-chat-campaign');
+  const campaignCopyNoteEl = document.getElementById('tvl-campaign-copy-note');
   const closeBtn = document.getElementById('tvl-close');
   const refreshBtn = document.getElementById('tvl-refresh');
   const openImportBtn = document.getElementById('tvl-open-import');
@@ -1004,12 +1018,17 @@
   function renderCampaignControls() {
     const campaign = state.activeCampaign;
     const managedByStoryState = campaign && campaign.source === 'storystate';
+    const chatCount = getCatalog('chat').length;
+    const campaignCount = campaign ? getCatalog('campaign', campaign.id).length : 0;
+
     if (campaignStatusEl) {
       campaignStatusEl.textContent = campaign
-        ? `${campaign.name} · ${managedByStoryState ? 'managed by StoryState' : 'selected for this chat'}`
-        : 'No campaign selected. Create or select one to use Campaign scope.';
+        ? `Active campaign: ${campaign.name}${managedByStoryState ? ' · managed by StoryState' : ' · selected for this chat'}`
+        : 'No active campaign. Create or select one to use Campaign scope.';
     }
 
+    // StoryState already owns campaign identity. Standalone controls must disappear
+    // rather than remain visible but intentionally no-op.
     if (campaignManualEl) campaignManualEl.hidden = !!managedByStoryState;
     if (campaignSelectEl && !managedByStoryState) {
       const selectedId = campaign && campaign.source === 'manual' ? campaign.id : '';
@@ -1022,7 +1041,20 @@
     if (campaignScopeOption) campaignScopeOption.disabled = !campaign;
     const campaignFilterOption = filterScopeEl && filterScopeEl.querySelector('option[value="campaign"]');
     if (campaignFilterOption) campaignFilterOption.disabled = !campaign;
-    if (copyChatCampaignBtn) copyChatCampaignBtn.disabled = !campaign || getCatalog('chat').length === 0;
+
+    if (copyChatCampaignBtn) {
+      copyChatCampaignBtn.disabled = !campaign || chatCount === 0;
+      copyChatCampaignBtn.textContent = !campaign
+        ? 'No active campaign'
+        : chatCount === 0
+          ? 'No This Chat entries to copy'
+          : `Copy This Chat → Campaign (${chatCount})`;
+    }
+    if (campaignCopyNoteEl) {
+      campaignCopyNoteEl.textContent = campaign
+        ? `${campaignCount} campaign entr${campaignCount === 1 ? 'y' : 'ies'} saved for this campaign. ${chatCount ? `${chatCount} This Chat entr${chatCount === 1 ? 'y is' : 'ies are'} available to copy.` : 'This session has no chat-scoped entries to copy.'}`
+        : 'Campaign storage becomes available as soon as StoryState supplies a campaign or you select one manually.';
+    }
   }
 
   function refreshCampaignContext() {
@@ -1087,8 +1119,6 @@
       setStatus('There are no This Chat entries to copy.', 'info');
       return;
     }
-    if (!confirm(`Copy ${chatItems.length} This Chat visual reference${chatItems.length === 1 ? '' : 's'} into ${campaign.name}? The originals will remain in this chat.`)) return;
-
     const target = getCatalog('campaign', campaign.id).slice();
     let copied = 0, skipped = 0, failed = 0;
     for (const item of chatItems) {
