@@ -97,8 +97,16 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'entry.js'), 'utf8
   assert(html.includes("const CAMPAIGN_IDENTITY_KEY = 'com.hooch88.tavo.campaignIdentity'"), 'Panel must use the shared StoryState campaign identity bridge.');
   assert(html.includes("const STORYSTATE_KEY = 'storyState.state'"), 'Panel must retain dev6 StoryState compatibility.');
   assert(html.includes("return scope === 'campaign' ? 'global'"), 'Panel must keep campaign files in global physical storage rather than inventing a Tavo campaign file scope.');
+  assert(html.includes('id="tvl-select-visible"'), 'Bulk editor must support selecting the currently filtered entries.');
+  assert(html.includes('id="tvl-select-all"'), 'Bulk editor must support selecting the full active library view.');
+  assert(html.includes('id="tvl-bulk-type"'), 'Bulk editor must change Character/Place category.');
+  assert(html.includes('id="tvl-bulk-scope"'), 'Bulk editor must change This Chat/Campaign/Global location.');
+  assert(html.includes('async function applyBulkChangeToItem'), 'Bulk scope moves must use file-aware migration logic.');
+  assert(html.includes("tavo.file.load(item.fileName, { scope: sourceStorageScope, encoding: 'dataUrl' })"), 'Bulk moves across physical scopes must read the stored image bytes.');
+  assert(html.includes("tavo.file.save(newFileName, dataUrl, { scope: targetStorageScope, encoding: 'dataUrl' })"), 'Bulk moves across physical scopes must save a verified destination image.');
+  assert(html.includes('state.selectedKeys = new Set(failed.map((item) => item.key))'), 'Failed bulk items should remain selected for correction/retry.');
 
-  console.log('Visual Library campaign-scope tests passed.');
+  console.log('Visual Library campaign-scope and bulk-management tests passed.');
 })().catch((error) => {
   console.error(error);
   process.exitCode = 1;

@@ -1,3 +1,12 @@
+## 1.4.0
+
+- Added bulk library management with multi-select checkboxes.
+- Added Select Visible, Select All, and Clear selection actions.
+- Added batch category changes between Character and Place.
+- Added batch library-location moves between This Chat, Campaign, and Global.
+- Bulk location moves migrate stored image bytes when physical Tavo storage scope changes, and keep failed entries selected for retry.
+- Renamed some UI labels from type/scope to the clearer category/library location wording.
+
 ## 1.3.1
 
 - Fixed StoryState-managed campaign controls appearing even though they are intentionally unavailable.

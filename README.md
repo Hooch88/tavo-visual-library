@@ -4,7 +4,7 @@ A Tavo plugin for reusable **character** and **place** images in AI role-playing
 
 Tavo Visual Library can import images from direct image URLs or supported image-host sharing pages, store a local copy in Tavo, organize entries by chat/campaign/global scope, display saved portraits without advancing the story, and optionally invoke visuals automatically when the narrator mentions a saved character or place.
 
-**Current version: 1.3.1**
+**Current version: 1.4.0**
 
 ## Features
 
@@ -13,6 +13,9 @@ Tavo Visual Library can import images from direct image URLs or supported image-
 - StoryState campaign-ID integration for cross-session visual continuity
 - Standalone campaign create/select support when StoryState is absent
 - Safe **Copy This Chat → Campaign** migration
+- Multi-select bulk library editing
+- Batch Character/Place category changes
+- Batch This Chat/Campaign/Global location moves
 - Name, aliases, and description metadata
 - Import from direct image URLs
 - Automatic resolution of common image-host page URLs such as ImgBB sharing pages
@@ -33,7 +36,7 @@ Live testing found that Tavo currently renders place backgrounds reliably when t
 
 The same images work normally from Tavo local storage in the gallery, preview, and chat bubbles, but a local Tavo file path may render as a black background when used through `tavo.chat.update({ background: ... })`.
 
-For that reason, v1.3.1 defaults to:
+For that reason, v1.4.0 defaults to:
 
 - **Source URL — recommended**
 - **Local Tavo copy — experimental**
@@ -67,7 +70,7 @@ Windows PowerShell:
 The resulting package is written to:
 
 ```text
-dist/tavo-visual-library-1.3.1.tpg
+dist/tavo-visual-library-1.4.0.tpg
 ```
 
 Then:
@@ -109,6 +112,18 @@ Scope precedence for unqualified `/show` and Smart Invocation is:
 3. **Global**
 
 That means keeping a chat-scoped original after copying it to Campaign does not make Smart Invocation ambiguous.
+
+## Bulk library management
+
+The Library tab supports multi-select management for larger casts and location libraries:
+
+- select individual entries with checkboxes;
+- **Select Visible** to select the current search/filter result;
+- **Select All** to select every entry currently available to this chat;
+- batch-change **Category** between Character and Place;
+- batch-move **Library Location** between This Chat, Campaign, and Global.
+
+Scope moves migrate the stored image when Tavo's physical file scope changes. Campaign ↔ Global moves reuse the existing global file safely because Campaign is a logical namespace over global file storage. One confirmation applies to the whole batch; entries that fail remain selected so they can be corrected or retried.
 
 ## Smart Invocation
 
@@ -162,4 +177,4 @@ tests/
 
 ## Development Status
 
-Version 1.3.1 adds campaign-scoped visual continuity. Existing Character Smart Invocation, `/show`, URL/page importing, gallery controls, and source-URL place backgrounds remain part of the tested baseline; Campaign scope should be validated on-device across a StoryState session handoff.
+Version 1.4.0 adds bulk library management on top of the campaign-scoped visual continuity introduced in 1.3.x. Multi-select category and library-location changes should be validated on-device with a mix of This Chat, Campaign, and Global entries.
