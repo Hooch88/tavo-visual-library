@@ -1,0 +1,69 @@
+name: Sync Visual Library 1.3
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: contains(github.event.head_commit.message, 'run Visual Library 1.3 sync')
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply verified 1.3 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .transport/v130.part* > /tmp/v130.b64
+          echo "6c0c18a7db38cf853e4d1d60140447a664d015683b8f1f007185119af9706f05  /tmp/v130.b64" | sha256sum -c -
+          base64 -d /tmp/v130.b64 > /tmp/v130.diff.gz
+          gzip -dc /tmp/v130.diff.gz > /tmp/v130.diff
+          patch -p1 < /tmp/v130.diff
+      - name: Run Visual Library checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          json.loads(Path('manifest.json').read_text())
+          json.loads(Path('locales/en.json').read_text())
+          html = Path('ui/panel.html').read_text()
+          m = re.search(r'<script>\s*(.*?)\s*</script>\s*$', html, re.S)
+          if not m:
+              raise SystemExit('No panel script found')
+          Path('/tmp/tvl-panel.js').write_text(m.group(1))
+          PY
+          node --check entry.js
+          node --check /tmp/tvl-panel.js
+          node tests/campaign-scope.test.cjs
+          bash scripts/build.sh
+      - name: Verify exact 1.3 source blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          check_blob() { test "$(git hash-object "$1")" = "$2" || { echo "Blob mismatch: $1"; exit 1; }; }
+          check_blob manifest.json ebdbb7858d653d000ddbddf0f2594480168e2454
+          check_blob entry.js 235bcc89225a48a96fc1744ff844776d040e0a81
+          check_blob locales/en.json 6ec659ff013a32e398e0aee6821284b70d956df4
+          check_blob ui/panel.html ec77f2f1ed1c6223fc914e77ea970f45cbffe791
+          check_blob README.md f34091cca023a9d7aa51a9a5c00d6339b4a49c3e
+          check_blob CHANGELOG.md ab19d52826eaed9c5d64151481692df816632954
+          check_blob .github/workflows/build.yml c2420163b348b9e2784a60e4b26aa4cbca645217
+          check_blob tests/campaign-scope.test.cjs c6633156ee143f080a80824b919bc235fa0f6eaa
+      - name: Commit clean Visual Library 1.3 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .transport .github/workflows/v130-sync.yml .github/workflows/export-source-temp.yml
+          git config user.name "Hooch88"
+          git config user.email "155849308+Hooch88@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: add campaign-scoped visual library"
+          git push origin main
