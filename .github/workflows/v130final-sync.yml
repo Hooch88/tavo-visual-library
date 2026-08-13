@@ -25,6 +25,9 @@ jobs:
           base64 -d /tmp/v130final.b64 > /tmp/v130final.diff.gz
           gzip -dc /tmp/v130final.diff.gz > /tmp/v130final.diff
           patch -p1 < /tmp/v130final.diff
+          # Keep the repository's pre-existing CI workflow unchanged. The GitHub App
+          # can publish plugin source but is not permitted to rewrite existing workflows.
+          git checkout HEAD -- .github/workflows/build.yml
           git diff --check
       - name: Run Visual Library checks
         shell: bash
@@ -45,7 +48,7 @@ jobs:
           node --check /tmp/tvl-panel.js
           node tests/campaign-scope.test.cjs
           bash scripts/build.sh
-      - name: Verify exact 1.3 source blobs
+      - name: Verify exact 1.3 plugin source blobs
         shell: bash
         run: |
           set -euo pipefail
@@ -56,8 +59,8 @@ jobs:
           check_blob ui/panel.html ec77f2f1ed1c6223fc914e77ea970f45cbffe791
           check_blob README.md f34091cca023a9d7aa51a9a5c00d6339b4a49c3e
           check_blob CHANGELOG.md ab19d52826eaed9c5d64151481692df816632954
-          check_blob .github/workflows/build.yml c2420163b348b9e2784a60e4b26aa4cbca645217
           check_blob tests/campaign-scope.test.cjs c6633156ee143f080a80824b919bc235fa0f6eaa
+          check_blob .github/workflows/build.yml 5167c65b470d2eeaa84bf415d791bea544320af1
       - name: Commit clean Visual Library 1.3 source
         shell: bash
         run: |
