@@ -39,12 +39,35 @@ The gallery itself still keeps Tavo's local stored copy.
 
 ## Installation
 
-1. Download the latest `.tpg` from the `dist/` folder.
-2. In Tavo, open **Settings → Plugins → Install**.
-3. Select the `.tpg` file.
-4. Enable the plugin.
-5. Make sure **Advanced Rendering** is enabled for the chat.
-6. Open **Tavo Visual Library** from the chat sidebar.
+Tavo plugins are zip-format `.tpg` packages with `manifest.json` at the archive root.
+
+Build the package from this repository, then install it in Tavo:
+
+### macOS / Linux / Git Bash
+
+```bash
+./scripts/build.sh
+```
+
+### Windows PowerShell
+
+```powershell
+./scripts/build.ps1
+```
+
+The resulting package is written to:
+
+```text
+dist/tavo-visual-library-1.2.2.tpg
+```
+
+Then:
+
+1. In Tavo, open **Settings → Plugins → Install**.
+2. Select the generated `.tpg` file.
+3. Enable the plugin.
+4. Make sure **Advanced Rendering** is enabled for the chat.
+5. Open **Tavo Visual Library** from the chat sidebar.
 
 ## Manual Commands
 
@@ -100,15 +123,11 @@ locales/
   en.json
 ui/
   panel.html
-dist/
-  tavo-visual-library-1.2.2.tpg
-SHA256SUMS.txt
+scripts/
+  build.sh
+  build.ps1
 ```
 
-## Integrity
+## Development Status
 
-SHA-256 for v1.2.2:
-
-```text
-19061d80e04811720b649632b8725e435844075a6f69ba77d339937158491f0b  tavo-visual-library-1.2.2.tpg
-```
+Version 1.2.2 is the current tested baseline. Character Smart Invocation, `/show`, URL/page importing, gallery controls, and source-URL place backgrounds have been exercised in the Android Tavo app.
