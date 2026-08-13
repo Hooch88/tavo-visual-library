@@ -1,0 +1,117 @@
+{
+  "specVersion": 2,
+  "id": "com.hooch88.tavo-visual-library",
+  "name": {
+    "$t": "plugin.name"
+  },
+  "version": "1.2.2",
+  "minAppVersion": "0.92.0",
+  "entry": "entry.js",
+  "author": "Jeremy / OpenAI",
+  "description": {
+    "$t": "plugin.description"
+  },
+  "localization": {
+    "defaultLocale": "en",
+    "resources": {
+      "en": "locales/en.json"
+    }
+  },
+  "permissions": [
+    "input",
+    "message",
+    "variable",
+    "file",
+    "network",
+    "generate"
+  ],
+  "contributes": {
+    "sidebar": [
+      {
+        "id": "open-visual-library",
+        "label": {
+          "$t": "actions.openLibrary"
+        }
+      },
+      {
+        "id": "test-smart-invocation",
+        "label": {
+          "$t": "actions.testSmartInvocation"
+        }
+      },
+      {
+        "id": "reset-smart-cooldown",
+        "label": {
+          "$t": "actions.resetSmartCooldown"
+        }
+      },
+      {
+        "id": "restore-theme-background",
+        "label": {
+          "$t": "actions.restoreThemeBackground"
+        }
+      }
+    ],
+    "htmlFragments": [
+      {
+        "id": "visual-library-panel",
+        "src": "ui/panel.html",
+        "mount": "/chat/body/end"
+      }
+    ],
+    "settings": {
+      "schema": [
+        {
+          "type": "info",
+          "text": "Smart Invocation can automatically show saved visual references when the narrator mentions them. It is off by default. Use the sidebar Test Smart Invocation action to diagnose the current chat."
+        },
+        {
+          "key": "autoShowMode",
+          "type": "select",
+          "label": "Automatic visual display",
+          "default": "off",
+          "options": [
+            {
+              "value": "off",
+              "label": "Off"
+            },
+            {
+              "value": "characters",
+              "label": "Characters only"
+            },
+            {
+              "value": "places",
+              "label": "Places only"
+            },
+            {
+              "value": "both",
+              "label": "Characters and places"
+            }
+          ]
+        },
+        {
+          "key": "autoCooldownMessages",
+          "type": "slider",
+          "label": "Repeat cooldown (messages)",
+          "min": 0,
+          "max": 50,
+          "step": 1,
+          "default": 10
+        },
+        {
+          "key": "autoMaxPerMessage",
+          "type": "slider",
+          "label": "Maximum auto-images per narrator message",
+          "min": 1,
+          "max": 3,
+          "step": 1,
+          "default": 1
+        },
+        {
+          "type": "info",
+          "text": "Manual Show in Chat and /show Name always remain available regardless of these settings."
+        }
+      ]
+    }
+  }
+}
