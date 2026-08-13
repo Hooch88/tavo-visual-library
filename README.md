@@ -41,15 +41,21 @@ The gallery itself still keeps Tavo's local stored copy.
 
 Tavo plugins are zip-format `.tpg` packages with `manifest.json` at the archive root.
 
-Build the package from this repository, then install it in Tavo:
+### Automated GitHub build
 
-### macOS / Linux / Git Bash
+Every push to `main` runs **Build Tavo Plugin** under GitHub Actions. A successful run produces a `tavo-visual-library` artifact containing the installable `.tpg` plus its SHA-256 checksum.
+
+Open the latest successful **Build Tavo Plugin** run, then download the artifact from its **Artifacts** section.
+
+### Build locally
+
+macOS / Linux / Git Bash:
 
 ```bash
 bash scripts/build.sh
 ```
 
-### Windows PowerShell
+Windows PowerShell:
 
 ```powershell
 ./scripts/build.ps1
@@ -126,6 +132,8 @@ ui/
 scripts/
   build.sh
   build.ps1
+.github/workflows/
+  build.yml
 ```
 
 ## Development Status
