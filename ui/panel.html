@@ -26,6 +26,7 @@
         <select id="tvl-filter-scope">
           <option value="all">All scopes</option>
           <option value="chat">This chat</option>
+          <option value="campaign">Campaign</option>
           <option value="global">Global</option>
         </select>
       </div>
@@ -33,6 +34,19 @@
         <span id="tvl-count-all" class="tvl-summary-pill">0 total</span>
         <span id="tvl-count-characters" class="tvl-summary-pill">0 characters</span>
         <span id="tvl-count-places" class="tvl-summary-pill">0 places</span>
+      </div>
+      <div class="tvl-campaign-controls">
+        <div>
+          <strong>Campaign Library</strong>
+          <div id="tvl-campaign-status" class="tvl-campaign-status">No campaign selected.</div>
+        </div>
+        <div id="tvl-campaign-manual" class="tvl-campaign-manual">
+          <select id="tvl-campaign-select" aria-label="Select campaign"><option value="">Select campaign…</option></select>
+          <button id="tvl-create-campaign" class="tvl-secondary-btn" type="button">Create Campaign</button>
+          <button id="tvl-clear-campaign" class="tvl-secondary-btn" type="button">Clear</button>
+        </div>
+        <button id="tvl-copy-chat-campaign" class="tvl-secondary-btn" type="button">Copy This Chat → Campaign</button>
+        <small>Campaign entries persist across sessions that share the same campaign ID. When StoryState is active, its campaign ID is used automatically; unrelated campaigns stay isolated.</small>
       </div>
       <div class="tvl-toolbar tvl-toolbar-tertiary">
         <button id="tvl-refresh" class="tvl-secondary-btn">Refresh</button>
@@ -65,6 +79,7 @@
       <form id="tvl-form" class="tvl-form">
         <input type="hidden" id="tvl-editing-id" />
         <input type="hidden" id="tvl-editing-scope" />
+        <input type="hidden" id="tvl-editing-campaign-id" />
         <div class="tvl-field-group">
           <label>Name</label>
           <input id="tvl-name" type="text" placeholder="Rosario Castellano" required />
@@ -81,6 +96,7 @@
             <label>Library Scope</label>
             <select id="tvl-scope">
               <option value="chat">This Chat</option>
+              <option value="campaign">Campaign</option>
               <option value="global">Global</option>
             </select>
           </div>
@@ -114,18 +130,20 @@
         <h3>Usage</h3>
         <ul>
           <li><strong>Open Visual Library</strong> from the chat right sidebar.</li>
-          <li>Import an <strong>image URL or supported page URL</strong> into either <strong>This Chat</strong> or the <strong>Global</strong> library.</li>
+          <li>Import an <strong>image URL or supported page URL</strong> into <strong>This Chat</strong>, the current <strong>Campaign</strong>, or the <strong>Global</strong> library.</li>
           <li>Use <strong>Show in Chat</strong> on any entry to place its image into the conversation.</li>
           <li>For <strong>Place</strong> entries, use <strong>Set Background</strong> to apply that image as the current chat background.</li>
           <li>Type <code>/show Name</code> in the input box to invoke a saved entry by name or alias. Typing <code>/show</code> by itself opens the library.</li>
-          <li>Use <code>/show chat:Name</code> or <code>/show global:Name</code> to limit the search scope.</li>
+          <li>Use <code>/show chat:Name</code>, <code>/show campaign:Name</code>, or <code>/show global:Name</code> to limit the search scope.</li>
         </ul>
         <h3>Notes</h3>
         <ul>
           <li>URL-imported images are downloaded and stored locally using Tavo's file storage.</li>
           <li>ImgBB viewing-page links such as <code>https://ibb.co/...</code> are now supported. The plugin will attempt to extract the real <code>i.ibb.co/...</code> image automatically.</li>
           <li>Tavo currently does not expose the Android photo-library/file picker to plugins, so imports begin from a URL.</li>
-          <li><strong>This Chat</strong> entries stay with the current chat. <strong>Global</strong> entries can be reused across chats.</li>
+          <li><strong>This Chat</strong> entries stay with the current chat. <strong>Campaign</strong> entries follow one campaign across sessions without appearing in unrelated campaigns. <strong>Global</strong> entries can be reused everywhere.</li>
+          <li>When StoryState is installed, Visual Library automatically uses StoryState's current campaign ID. Without StoryState, create or select a campaign in the Library tab.</li>
+          <li><strong>Copy This Chat → Campaign</strong> safely duplicates chat-scoped images into the current campaign library; the original chat entries are left untouched.</li>
           <li>The plugin shows images in chat by appending an assistant-side visual bubble.</li>
           <li>If multiple entries match a <code>/show</code> query, the plugin will ask you to be more specific.</li>
           <li><strong>Place backgrounds:</strong> use the opacity slider in the library and the <strong>Restore Theme Background</strong> button to return to your normal theme.</li>
@@ -237,6 +255,40 @@
     flex-wrap: wrap;
     gap: 7px;
     margin: 2px 0 10px;
+  }
+  .tvl-campaign-controls {
+    display: grid;
+    gap: 8px;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(43, 110, 245, 0.08);
+    border: 1px solid rgba(43, 110, 245, 0.18);
+  }
+  .tvl-campaign-status {
+    margin-top: 3px;
+    font-size: 12px;
+    opacity: 0.85;
+  }
+  .tvl-campaign-manual {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+  }
+  .tvl-campaign-manual select {
+    width: 100%;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: #fff;
+    padding: 10px 12px;
+    font: inherit;
+    box-sizing: border-box;
+  }
+  .tvl-campaign-controls small {
+    font-size: 12px;
+    opacity: 0.8;
+    line-height: 1.4;
   }
   .tvl-background-controls {
     display: grid;
@@ -479,6 +531,7 @@
     .tvl-toolbar,
     .tvl-toolbar-secondary,
     .tvl-toolbar-tertiary,
+    .tvl-campaign-manual,
     .tvl-field-grid,
     .tvl-form-actions,
     .tvl-background-controls-grid {
@@ -506,6 +559,11 @@
 (function () {
   const UI_STATE_KEY = 'tvl_ui_state';
   const CATALOG_KEY = 'tvl_catalog';
+  const CAMPAIGN_CATALOG_PREFIX = 'tvl_campaign_catalog_v1.';
+  const CAMPAIGN_REGISTRY_KEY = 'tvl_campaign_registry_v1';
+  const CAMPAIGN_SELECTION_KEY = 'tvl_campaign_selection_v1';
+  const CAMPAIGN_IDENTITY_KEY = 'com.hooch88.tavo.campaignIdentity';
+  const STORYSTATE_KEY = 'storyState.state';
   const BACKGROUND_OPACITY_KEY = 'tvl_place_background_opacity';
   const BACKGROUND_SOURCE_KEY = 'tvl_place_background_source';
   const state = {
@@ -516,7 +574,9 @@
     currentBackgroundImage: null,
     currentBackgroundOpacity: null,
     placeBackgroundOpacity: 0.45,
-    placeBackgroundSource: 'remote'
+    placeBackgroundSource: 'remote',
+    activeCampaign: null,
+    campaigns: []
   };
 
   const root = document.getElementById('tvl-root');
@@ -529,6 +589,12 @@
   const countAllEl = document.getElementById('tvl-count-all');
   const countCharactersEl = document.getElementById('tvl-count-characters');
   const countPlacesEl = document.getElementById('tvl-count-places');
+  const campaignStatusEl = document.getElementById('tvl-campaign-status');
+  const campaignManualEl = document.getElementById('tvl-campaign-manual');
+  const campaignSelectEl = document.getElementById('tvl-campaign-select');
+  const createCampaignBtn = document.getElementById('tvl-create-campaign');
+  const clearCampaignBtn = document.getElementById('tvl-clear-campaign');
+  const copyChatCampaignBtn = document.getElementById('tvl-copy-chat-campaign');
   const closeBtn = document.getElementById('tvl-close');
   const refreshBtn = document.getElementById('tvl-refresh');
   const openImportBtn = document.getElementById('tvl-open-import');
@@ -543,6 +609,7 @@
 
   const editingIdEl = document.getElementById('tvl-editing-id');
   const editingScopeEl = document.getElementById('tvl-editing-scope');
+  const editingCampaignIdEl = document.getElementById('tvl-editing-campaign-id');
   const nameEl = document.getElementById('tvl-name');
   const typeEl = document.getElementById('tvl-type');
   const scopeEl = document.getElementById('tvl-scope');
@@ -584,31 +651,185 @@
     return 'jpg';
   }
 
-  function buildStoredFileNameFromUrl(url, entryName, forcedExt = null) {
+  function safeText(value, max = 120) {
+    return String(value == null ? '' : value).trim().slice(0, max);
+  }
+
+  function makeCampaignId() {
+    return `tvl-campaign-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function campaignCatalogKey(campaignId) {
+    return `${CAMPAIGN_CATALOG_PREFIX}${safeText(campaignId, 120)}`;
+  }
+
+  function campaignFilePrefix(campaignId) {
+    const safe = sanitizeBaseName(campaignId || 'campaign').slice(0, 42);
+    return `campaign_${safe}`;
+  }
+
+  function physicalFileScope(scope) {
+    return scope === 'campaign' ? 'global' : (scope || 'chat');
+  }
+
+  function fileScopeForItem(item) {
+    return item && item.fileScope ? item.fileScope : physicalFileScope(item && item.scope);
+  }
+
+  function scopeRank(scope) {
+    if (scope === 'chat') return 3;
+    if (scope === 'campaign') return 2;
+    if (scope === 'global') return 1;
+    return 0;
+  }
+
+  function scopeLabel(itemOrScope) {
+    const item = typeof itemOrScope === 'string' ? { scope: itemOrScope } : (itemOrScope || {});
+    if (item.scope === 'campaign') return item.campaignName ? `Campaign · ${item.campaignName}` : 'Campaign';
+    if (item.scope === 'global') return 'Global';
+    return 'This Chat';
+  }
+
+  function buildStoredFileNameFromUrl(url, entryName, forcedExt = null, campaignId = null) {
     const ext = forcedExt || getExtFromUrl(url);
     const base = sanitizeBaseName(entryName || 'image');
     const suffix = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    return `tvl_${base}_${suffix}.${ext}`;
+    const prefix = campaignId ? `tvl_${campaignFilePrefix(campaignId)}_` : 'tvl_';
+    return `${prefix}${base}_${suffix}.${ext}`;
   }
 
-  function getCatalog(scope) {
+  function normalizeCampaignRegistry(raw) {
+    const source = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const items = (Array.isArray(source.items) ? source.items : [])
+      .map((item) => ({
+        id: safeText(item && item.id, 120),
+        name: safeText(item && item.name, 120) || 'Campaign',
+        createdAt: safeText(item && item.createdAt, 60) || new Date().toISOString(),
+        updatedAt: safeText(item && item.updatedAt, 60) || new Date().toISOString()
+      }))
+      .filter((item) => item.id);
+    const deduped = [];
+    const seen = new Set();
+    for (const item of items) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      deduped.push(item);
+    }
+    return { version: 1, items: deduped.slice(0, 100) };
+  }
+
+  function getCampaignRegistry() {
+    return normalizeCampaignRegistry(tavo.get(CAMPAIGN_REGISTRY_KEY, 'global'));
+  }
+
+  function setCampaignRegistry(registry) {
+    tavo.set(CAMPAIGN_REGISTRY_KEY, normalizeCampaignRegistry(registry), 'global');
+  }
+
+  function upsertCampaignRegistry(campaign) {
+    if (!campaign || !campaign.id) return;
+    const registry = getCampaignRegistry();
+    const existing = registry.items.find((item) => item.id === campaign.id);
+    const now = new Date().toISOString();
+    if (existing && existing.name === campaign.name) return;
+    if (existing) {
+      existing.name = campaign.name || existing.name || 'Campaign';
+      existing.updatedAt = now;
+    } else {
+      registry.items.unshift({ id: campaign.id, name: campaign.name || 'Campaign', createdAt: now, updatedAt: now });
+    }
+    setCampaignRegistry(registry);
+  }
+
+  function getStoryStateCampaign() {
+    try {
+      const shared = tavo.get(CAMPAIGN_IDENTITY_KEY, 'chat');
+      const sharedId = safeText(shared && shared.id, 120);
+      if (sharedId) {
+        return { id: sharedId, name: safeText(shared && shared.name, 120) || 'Campaign', source: 'storystate' };
+      }
+
+      // Backward-compatible fallback for StoryState dev6, before the compact
+      // cross-plugin campaign identity bridge was published.
+      const storyState = tavo.get(STORYSTATE_KEY, 'chat');
+      const campaign = storyState && typeof storyState === 'object' ? storyState.campaign : null;
+      const id = safeText(campaign && campaign.id, 120);
+      if (!id) return null;
+      return { id, name: safeText(campaign && campaign.name, 120) || 'Campaign', source: 'storystate' };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getManualCampaignSelection() {
+    const selected = tavo.get(CAMPAIGN_SELECTION_KEY, 'chat');
+    const id = safeText(selected && selected.id, 120);
+    if (!id) return null;
+    const registry = getCampaignRegistry();
+    const known = registry.items.find((item) => item.id === id);
+    return { id, name: safeText(known && known.name, 120) || safeText(selected && selected.name, 120) || 'Campaign', source: 'manual' };
+  }
+
+  function setManualCampaignSelection(campaign) {
+    if (!campaign) {
+      tavo.set(CAMPAIGN_SELECTION_KEY, null, 'chat');
+      return;
+    }
+    tavo.set(CAMPAIGN_SELECTION_KEY, { id: campaign.id, name: campaign.name || 'Campaign' }, 'chat');
+  }
+
+  function resolveActiveCampaign() {
+    const storyStateCampaign = getStoryStateCampaign();
+    if (storyStateCampaign) {
+      upsertCampaignRegistry(storyStateCampaign);
+      return storyStateCampaign;
+    }
+    return getManualCampaignSelection();
+  }
+
+  function getCatalog(scope, campaignId = null) {
+    if (scope === 'campaign') {
+      const id = safeText(campaignId || (state.activeCampaign && state.activeCampaign.id), 120);
+      if (!id) return [];
+      const value = tavo.get(campaignCatalogKey(id), 'global');
+      return Array.isArray(value) ? value : [];
+    }
     const value = tavo.get(CATALOG_KEY, scope);
     return Array.isArray(value) ? value : [];
   }
 
-  function setCatalog(scope, items) {
+  function setCatalog(scope, items, campaignId = null) {
+    if (scope === 'campaign') {
+      const id = safeText(campaignId || (state.activeCampaign && state.activeCampaign.id), 120);
+      if (!id) throw new Error('No campaign is selected.');
+      tavo.set(campaignCatalogKey(id), items, 'global');
+      return;
+    }
     tavo.set(CATALOG_KEY, items, scope);
   }
 
+  function hydrateCatalog(items, scope, campaign = null) {
+    return (items || []).map((item) => ({
+      ...item,
+      scope,
+      campaignId: scope === 'campaign' ? (safeText(item.campaignId, 120) || (campaign && campaign.id) || null) : null,
+      campaignName: scope === 'campaign' ? (safeText(item.campaignName, 120) || (campaign && campaign.name) || 'Campaign') : null,
+      fileScope: item.fileScope || physicalFileScope(scope),
+      aliases: Array.isArray(item.aliases) ? item.aliases : []
+    }));
+  }
+
   function combineCatalogs() {
-    const chatItems = getCatalog('chat').map((item) => ({ ...item, scope: 'chat' }));
-    const globalItems = getCatalog('global').map((item) => ({ ...item, scope: 'global' }));
-    return [...chatItems, ...globalItems];
+    const campaign = state.activeCampaign;
+    const chatItems = hydrateCatalog(getCatalog('chat'), 'chat');
+    const campaignItems = campaign ? hydrateCatalog(getCatalog('campaign', campaign.id), 'campaign', campaign) : [];
+    const globalItems = hydrateCatalog(getCatalog('global'), 'global');
+    return [...chatItems, ...campaignItems, ...globalItems];
   }
 
   function buildImagePath(item) {
     if (item.path) return item.path;
-    return tavo.file.url(item.fileName, item.scope || 'chat');
+    return tavo.file.url(item.fileName, fileScopeForItem(item));
   }
 
   function resolveRemoteImageUrl(item) {
@@ -772,10 +993,142 @@
     state.editing = null;
     editingIdEl.value = '';
     editingScopeEl.value = '';
+    editingCampaignIdEl.value = '';
     formEl.reset();
     imageUrlEl.placeholder = 'https://example.com/image.jpg or https://ibb.co/abcdef';
     if (saveBtn) saveBtn.textContent = 'Save to Library';
+    renderCampaignControls();
     clearStatus();
+  }
+
+  function renderCampaignControls() {
+    const campaign = state.activeCampaign;
+    const managedByStoryState = campaign && campaign.source === 'storystate';
+    if (campaignStatusEl) {
+      campaignStatusEl.textContent = campaign
+        ? `${campaign.name} · ${managedByStoryState ? 'managed by StoryState' : 'selected for this chat'}`
+        : 'No campaign selected. Create or select one to use Campaign scope.';
+    }
+
+    if (campaignManualEl) campaignManualEl.hidden = !!managedByStoryState;
+    if (campaignSelectEl && !managedByStoryState) {
+      const selectedId = campaign && campaign.source === 'manual' ? campaign.id : '';
+      campaignSelectEl.innerHTML = '<option value="">Select campaign…</option>' + state.campaigns
+        .map((item) => `<option value="${escapeHtml(item.id)}"${item.id === selectedId ? ' selected' : ''}>${escapeHtml(item.name)}</option>`)
+        .join('');
+    }
+
+    const campaignScopeOption = scopeEl && scopeEl.querySelector('option[value="campaign"]');
+    if (campaignScopeOption) campaignScopeOption.disabled = !campaign;
+    const campaignFilterOption = filterScopeEl && filterScopeEl.querySelector('option[value="campaign"]');
+    if (campaignFilterOption) campaignFilterOption.disabled = !campaign;
+    if (copyChatCampaignBtn) copyChatCampaignBtn.disabled = !campaign || getCatalog('chat').length === 0;
+  }
+
+  function refreshCampaignContext() {
+    state.activeCampaign = resolveActiveCampaign();
+    state.campaigns = getCampaignRegistry().items;
+    renderCampaignControls();
+  }
+
+  async function createStandaloneCampaign() {
+    if (getStoryStateCampaign()) {
+      setStatus('This chat already has a StoryState campaign. Visual Library uses that campaign automatically.', 'info');
+      return;
+    }
+    const name = safeText(prompt('Campaign name'), 120);
+    if (!name) return;
+    const now = new Date().toISOString();
+    const campaign = { id: makeCampaignId(), name, source: 'manual', createdAt: now, updatedAt: now };
+    const registry = getCampaignRegistry();
+    registry.items.unshift(campaign);
+    setCampaignRegistry(registry);
+    setManualCampaignSelection(campaign);
+    await refreshCatalog();
+    setStatus(`Created campaign library: ${name}.`, 'success');
+  }
+
+  async function selectStandaloneCampaign() {
+    if (getStoryStateCampaign()) return;
+    const id = safeText(campaignSelectEl && campaignSelectEl.value, 120);
+    if (!id) {
+      setManualCampaignSelection(null);
+      await refreshCatalog();
+      return;
+    }
+    const campaign = getCampaignRegistry().items.find((item) => item.id === id);
+    if (!campaign) {
+      setStatus('That campaign is no longer available.', 'error');
+      return;
+    }
+    setManualCampaignSelection(campaign);
+    await refreshCatalog();
+    setStatus(`Using campaign library: ${campaign.name}.`, 'success');
+  }
+
+  async function clearStandaloneCampaign() {
+    if (getStoryStateCampaign()) {
+      setStatus('StoryState controls the campaign for this chat.', 'info');
+      return;
+    }
+    setManualCampaignSelection(null);
+    await refreshCatalog();
+    setStatus('Campaign selection cleared for this chat.', 'success');
+  }
+
+  async function copyChatItemsToCampaign() {
+    const campaign = state.activeCampaign || resolveActiveCampaign();
+    if (!campaign) {
+      setStatus('Select or create a campaign first.', 'error');
+      return;
+    }
+    const chatItems = hydrateCatalog(getCatalog('chat'), 'chat');
+    if (!chatItems.length) {
+      setStatus('There are no This Chat entries to copy.', 'info');
+      return;
+    }
+    if (!confirm(`Copy ${chatItems.length} This Chat visual reference${chatItems.length === 1 ? '' : 's'} into ${campaign.name}? The originals will remain in this chat.`)) return;
+
+    const target = getCatalog('campaign', campaign.id).slice();
+    let copied = 0, skipped = 0, failed = 0;
+    for (const item of chatItems) {
+      const duplicate = target.some((existing) => normalizeText(existing.name) === normalizeText(item.name) && existing.type === item.type);
+      if (duplicate) { skipped += 1; continue; }
+      try {
+        if (!item.fileName) throw new Error('Missing stored file name');
+        const dataUrl = await tavo.file.load(item.fileName, { scope: fileScopeForItem(item), encoding: 'dataUrl' });
+        if (!dataUrl) throw new Error('Could not read chat image');
+        const ext = (String(item.fileName).split('.').pop() || 'png').toLowerCase();
+        const newFileName = buildStoredFileNameFromUrl(item.fileName, item.name, ext, campaign.id);
+        const newPath = await tavo.file.save(newFileName, dataUrl, { scope: 'global', encoding: 'dataUrl' });
+        if (!newPath) throw new Error('Could not save campaign image');
+        const now = new Date().toISOString();
+        const { scope: _scope, path: _path, fileScope: _fileScope, campaignId: _campaignId, campaignName: _campaignName, ...rest } = item;
+        target.push({
+          ...rest,
+          id: `tvl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          fileName: newFileName,
+          path: newPath,
+          fileScope: 'global',
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          copiedFromItemId: item.id || null,
+          createdAt: now,
+          updatedAt: now
+        });
+        copied += 1;
+      } catch (error) {
+        console.error('[Tavo Visual Library] Failed to copy chat item into campaign:', item && item.name, error);
+        failed += 1;
+      }
+    }
+    setCatalog('campaign', target, campaign.id);
+    upsertCampaignRegistry(campaign);
+    await refreshCatalog();
+    const details = [`${copied} copied`];
+    if (skipped) details.push(`${skipped} skipped as existing`);
+    if (failed) details.push(`${failed} failed`);
+    setStatus(`Campaign copy complete: ${details.join(', ')}. Original chat entries were not changed.`, failed ? 'info' : 'success');
   }
 
   function updateLibraryCounts() {
@@ -799,7 +1152,7 @@
       const matchesScope = scopeFilter === 'all' || item.scope === scopeFilter;
       return matchesQuery && matchesType && matchesScope;
     }).sort((a, b) => {
-      if (a.scope !== b.scope) return a.scope === 'chat' ? -1 : 1;
+      if (a.scope !== b.scope) return scopeRank(b.scope) - scopeRank(a.scope);
       return String(a.name || '').localeCompare(String(b.name || ''));
     });
 
@@ -835,7 +1188,7 @@
             <h4>${escapeHtml(item.name)}</h4>
             <div class="tvl-card-badges">
               <span class="tvl-badge">${escapeHtml(titleCase(item.type))}</span>
-              <span class="tvl-badge tvl-badge-scope">${escapeHtml(item.scope === 'global' ? 'Global' : 'This Chat')}</span>
+              <span class="tvl-badge tvl-badge-scope">${escapeHtml(scopeLabel(item))}</span>
               ${backgroundBadge}
             </div>
           </div>
@@ -904,6 +1257,7 @@
     state.editing = item;
     editingIdEl.value = item.id;
     editingScopeEl.value = item.scope;
+    editingCampaignIdEl.value = item.scope === 'campaign' ? (item.campaignId || '') : '';
     nameEl.value = item.name || '';
     typeEl.value = item.type || 'character';
     scopeEl.value = item.scope || 'chat';
@@ -917,13 +1271,14 @@
   }
 
   async function deleteItem(item) {
-    const yes = confirm(`Delete "${item.name}" from the ${item.scope === 'global' ? 'global' : 'chat'} library?`);
+    const yes = confirm(`Delete "${item.name}" from the ${scopeLabel(item)} library?`);
     if (!yes) return;
     try {
-      const catalog = getCatalog(item.scope).filter((entry) => entry.id !== item.id);
-      setCatalog(item.scope, catalog);
+      const campaignId = item.scope === 'campaign' ? item.campaignId : null;
+      const catalog = getCatalog(item.scope, campaignId).filter((entry) => entry.id !== item.id);
+      setCatalog(item.scope, catalog, campaignId);
       if (item.fileName) {
-        await tavo.file.delete(item.fileName, { scope: item.scope });
+        await tavo.file.delete(item.fileName, { scope: fileScopeForItem(item) });
       }
       await refreshCatalog();
       setStatus(`Deleted ${item.name}.`, 'success');
@@ -1088,31 +1443,34 @@
     try { await tavo.file.delete(name, { scope }); } catch (e) {}
   }
 
-  async function finalizeProbeAsImage(probe, sourceUrlForNaming, scope, entryName) {
-    const finalName = buildStoredFileNameFromUrl(sourceUrlForNaming, entryName, probe.imageInfo.ext);
+  async function finalizeProbeAsImage(probe, sourceUrlForNaming, storageScope, entryName, campaignId = null) {
+    const finalName = buildStoredFileNameFromUrl(sourceUrlForNaming, entryName, probe.imageInfo.ext, campaignId);
     const dataUrl = `data:${probe.imageInfo.mime};base64,${probe.base64}`;
-    const path = await tavo.file.save(finalName, dataUrl, { scope, encoding: 'dataUrl' });
-    await deleteIfExists(probe.probeName, scope);
-    return { fileName: finalName, path };
+    const path = await tavo.file.save(finalName, dataUrl, { scope: storageScope, encoding: 'dataUrl' });
+    await deleteIfExists(probe.probeName, storageScope);
+    return { fileName: finalName, path, fileScope: storageScope };
   }
 
-  async function saveImageUrl(url, scope, entryName) {
+  async function saveImageUrl(url, logicalScope, entryName, campaignId = null) {
     const value = String(url || '').trim();
     if (!/^https?:\/\//i.test(value)) throw new Error('Image or page URL must begin with http:// or https://');
+    const storageScope = physicalFileScope(logicalScope);
+    const activeCampaignId = logicalScope === 'campaign' ? safeText(campaignId || (state.activeCampaign && state.activeCampaign.id), 120) : null;
+    if (logicalScope === 'campaign' && !activeCampaignId) throw new Error('No campaign is selected.');
 
-    const firstProbe = await probeUrlContent(value, scope, entryName);
+    const firstProbe = await probeUrlContent(value, storageScope, entryName);
     if (firstProbe.kind === 'image') {
-      const finalized = await finalizeProbeAsImage(firstProbe, value, scope, entryName);
+      const finalized = await finalizeProbeAsImage(firstProbe, value, storageScope, entryName, activeCampaignId);
       return { ...finalized, sourceUrl: value, resolvedImageUrl: value };
     }
 
     if (firstProbe.kind !== 'html') {
-      await deleteIfExists(firstProbe.probeName, scope);
+      await deleteIfExists(firstProbe.probeName, storageScope);
       throw new Error('The URL did not return an image or a readable image page. Paste a direct image URL or a supported image-host page URL.');
     }
 
     const html = firstProbe.text;
-    await deleteIfExists(firstProbe.probeName, scope);
+    await deleteIfExists(firstProbe.probeName, storageScope);
     const candidates = extractImageCandidatesFromHtml(html, value);
     if (!candidates.length) {
       throw new Error("The page loaded, but no usable image URL could be found on it. Try the host's Direct link if available.");
@@ -1122,12 +1480,12 @@
     for (const candidate of candidates.slice(0, 8)) {
       tried.push(candidate);
       try {
-        const candidateProbe = await probeUrlContent(candidate, scope, entryName);
+        const candidateProbe = await probeUrlContent(candidate, storageScope, entryName);
         if (candidateProbe.kind === 'image') {
-          const finalized = await finalizeProbeAsImage(candidateProbe, candidate, scope, entryName);
+          const finalized = await finalizeProbeAsImage(candidateProbe, candidate, storageScope, entryName, activeCampaignId);
           return { ...finalized, sourceUrl: value, resolvedImageUrl: candidate };
         }
-        await deleteIfExists(candidateProbe.probeName, scope);
+        await deleteIfExists(candidateProbe.probeName, storageScope);
       } catch (error) {
         // Ignore a failed candidate and continue trying the next one.
       }
@@ -1136,9 +1494,9 @@
     throw new Error("A page image was found, but none of the extracted candidates could be imported successfully. Try the host's Direct link if available.");
   }
 
-  function findCommandConflict(name, aliases, scope, excludeId = null) {
+  function findCommandConflict(name, aliases, scope, excludeId = null, campaignId = null) {
     const incoming = new Set([name, ...(aliases || [])].map(normalizeText).filter(Boolean));
-    for (const item of getCatalog(scope)) {
+    for (const item of getCatalog(scope, campaignId)) {
       if (excludeId && item.id === excludeId) continue;
       const existing = [item.name, ...(item.aliases || [])].map(normalizeText).filter(Boolean);
       const clash = existing.find((value) => incoming.has(value));
@@ -1159,9 +1517,17 @@
     const imageUrl = imageUrlEl.value.trim();
     const editingId = editingIdEl.value;
     const originalScope = editingScopeEl.value;
+    const originalCampaignId = safeText(editingCampaignIdEl.value, 120) || null;
+    const targetCampaign = scope === 'campaign' ? (state.activeCampaign || resolveActiveCampaign()) : null;
+    const targetCampaignId = targetCampaign ? targetCampaign.id : null;
 
     if (!name) {
       setStatus('Name is required.', 'error');
+      return;
+    }
+
+    if (scope === 'campaign' && !targetCampaignId) {
+      setStatus('Select or create a campaign before saving to Campaign scope.', 'error');
       return;
     }
 
@@ -1170,15 +1536,16 @@
       return;
     }
 
-    const conflict = findCommandConflict(name, aliases, scope, editingId || null);
+    const conflict = findCommandConflict(name, aliases, scope, editingId || null, targetCampaignId);
     if (conflict) {
       const proceed = confirm(`"${name}" shares a name or alias with "${conflict.item.name}" in this library. That can make /show commands ambiguous. Save anyway?`);
       if (!proceed) return;
     }
 
     try {
-      let catalog = getCatalog(editingId ? originalScope : scope);
-      let entry = editingId ? catalog.find((item) => item.id === editingId) : null;
+      const sourceCampaignId = originalScope === 'campaign' ? originalCampaignId : null;
+      const sourceCatalog = getCatalog(editingId ? originalScope : scope, editingId ? sourceCampaignId : targetCampaignId);
+      const entry = editingId ? sourceCatalog.find((item) => item.id === editingId) : null;
 
       if (editingId && !entry) {
         setStatus('The item being edited could not be found.', 'error');
@@ -1188,55 +1555,81 @@
       let savedFile = null;
       if (imageUrl) {
         setStatus('Resolving and downloading image into Tavo…');
-        savedFile = await saveImageUrl(imageUrl, scope, name);
+        savedFile = await saveImageUrl(imageUrl, scope, name, targetCampaignId);
       }
 
       const now = new Date().toISOString();
 
       if (editingId) {
         const targetScope = scope;
+        const targetCatalogId = targetScope === 'campaign' ? targetCampaignId : null;
+        const sourceStorageScope = entry.fileScope || physicalFileScope(originalScope);
+        const targetStorageScope = physicalFileScope(targetScope);
+        const logicalDestinationChanged = originalScope !== targetScope || (targetScope === 'campaign' && sourceCampaignId !== targetCatalogId);
+
         let nextEntry = {
           ...entry,
           name,
           type,
           aliases,
           description,
-          updatedAt: now
+          updatedAt: now,
+          fileScope: targetStorageScope
         };
 
-        if (savedFile) {
-          nextEntry = { ...nextEntry, ...savedFile };
+        if (targetScope === 'campaign') {
+          nextEntry.campaignId = targetCampaignId;
+          nextEntry.campaignName = targetCampaign ? targetCampaign.name : 'Campaign';
+        } else {
+          delete nextEntry.campaignId;
+          delete nextEntry.campaignName;
         }
 
-        if (originalScope !== targetScope) {
+        if (savedFile) nextEntry = { ...nextEntry, ...savedFile };
+
+        if (logicalDestinationChanged) {
           let migratedFile = savedFile;
           if (!migratedFile) {
-            const existingDataUrl = await tavo.file.load(entry.fileName, { scope: originalScope, encoding: 'dataUrl' });
-            if (!existingDataUrl) throw new Error('Could not read the existing image while moving libraries.');
-            const ext = (String(entry.fileName || '').split('.').pop() || 'png').toLowerCase();
-            const newFileName = `tvl_${sanitizeBaseName(name)}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
-            const newPath = await tavo.file.save(newFileName, existingDataUrl, { scope: targetScope, encoding: 'dataUrl' });
-            migratedFile = {
-              fileName: newFileName,
-              path: newPath,
-              mimeType: entry.mimeType || null,
-              originalFileName: entry.originalFileName || null
-            };
+            if (!entry.fileName) throw new Error('Could not find the existing stored image while moving libraries.');
+            if (sourceStorageScope === targetStorageScope) {
+              migratedFile = {
+                fileName: entry.fileName,
+                path: entry.path,
+                fileScope: targetStorageScope,
+                mimeType: entry.mimeType || null,
+                originalFileName: entry.originalFileName || null
+              };
+            } else {
+              const existingDataUrl = await tavo.file.load(entry.fileName, { scope: sourceStorageScope, encoding: 'dataUrl' });
+              if (!existingDataUrl) throw new Error('Could not read the existing image while moving libraries.');
+              const ext = (String(entry.fileName || '').split('.').pop() || 'png').toLowerCase();
+              const newFileName = buildStoredFileNameFromUrl(entry.fileName, name, ext, targetCampaignId);
+              const newPath = await tavo.file.save(newFileName, existingDataUrl, { scope: targetStorageScope, encoding: 'dataUrl' });
+              migratedFile = {
+                fileName: newFileName,
+                path: newPath,
+                fileScope: targetStorageScope,
+                mimeType: entry.mimeType || null,
+                originalFileName: entry.originalFileName || null
+              };
+            }
           }
+
           nextEntry = { ...nextEntry, ...migratedFile };
-          const oldCatalog = getCatalog(originalScope).filter((item) => item.id !== editingId);
-          setCatalog(originalScope, oldCatalog);
-          const newCatalog = getCatalog(targetScope);
+          const oldCatalog = getCatalog(originalScope, sourceCampaignId).filter((item) => item.id !== editingId);
+          setCatalog(originalScope, oldCatalog, sourceCampaignId);
+          const newCatalog = getCatalog(targetScope, targetCatalogId);
           newCatalog.push(nextEntry);
-          setCatalog(targetScope, newCatalog);
-          if (entry.fileName) {
-            try { await tavo.file.delete(entry.fileName, { scope: originalScope }); } catch (e) {}
+          setCatalog(targetScope, newCatalog, targetCatalogId);
+
+          if (entry.fileName && (entry.fileName !== nextEntry.fileName || sourceStorageScope !== targetStorageScope)) {
+            try { await tavo.file.delete(entry.fileName, { scope: sourceStorageScope }); } catch (e) {}
           }
         } else {
-          const nextCatalog = getCatalog(targetScope).map((item) => item.id === editingId ? nextEntry : item);
-          setCatalog(targetScope, nextCatalog);
+          const nextCatalog = getCatalog(targetScope, targetCatalogId).map((item) => item.id === editingId ? nextEntry : item);
+          setCatalog(targetScope, nextCatalog, targetCatalogId);
           if (savedFile && entry.fileName && entry.fileName !== savedFile.fileName) {
-            try { await tavo.file.delete(entry.fileName, { scope: targetScope }); } catch (e) {}
+            try { await tavo.file.delete(entry.fileName, { scope: sourceStorageScope }); } catch (e) {}
           }
         }
 
@@ -1245,26 +1638,31 @@
         showPanel('library');
         setStatus(`Updated ${name}.`, 'success');
         return;
-      } else {
-        const newEntry = {
-          id: `tvl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-          name,
-          type,
-          aliases,
-          description,
-          createdAt: now,
-          updatedAt: now,
-          ...savedFile
-        };
-        const nextCatalog = getCatalog(scope);
-        nextCatalog.push(newEntry);
-        setCatalog(scope, nextCatalog);
-        resetForm();
-        await refreshCatalog();
-        showPanel('library');
-        setStatus(`Saved ${name} locally to the ${scope === 'global' ? 'global' : 'chat'} library.`, 'success');
-        return;
       }
+
+      const newEntry = {
+        id: `tvl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name,
+        type,
+        aliases,
+        description,
+        createdAt: now,
+        updatedAt: now,
+        fileScope: physicalFileScope(scope),
+        ...savedFile
+      };
+      if (scope === 'campaign') {
+        newEntry.campaignId = targetCampaignId;
+        newEntry.campaignName = targetCampaign ? targetCampaign.name : 'Campaign';
+        upsertCampaignRegistry(targetCampaign);
+      }
+      const nextCatalog = getCatalog(scope, targetCampaignId);
+      nextCatalog.push(newEntry);
+      setCatalog(scope, nextCatalog, targetCampaignId);
+      resetForm();
+      await refreshCatalog();
+      showPanel('library');
+      setStatus(`Saved ${name} locally to the ${scopeLabel({ scope, campaignName: targetCampaign && targetCampaign.name })} library.`, 'success');
     } catch (error) {
       console.error('[Tavo Visual Library] Save failed:', error);
       setStatus(`Failed to save the entry: ${error.message || 'Unknown error'}`, 'error');
@@ -1273,6 +1671,7 @@
 
   async function refreshCatalog() {
     await refreshBackgroundState();
+    refreshCampaignContext();
     state.items = combineCatalogs();
     renderList();
   }
@@ -1281,6 +1680,10 @@
     closeBtn.addEventListener('click', () => hidePanel(true));
     root.querySelector('.tvl-backdrop').addEventListener('click', () => hidePanel(true));
     refreshBtn.addEventListener('click', refreshCatalog);
+    if (createCampaignBtn) createCampaignBtn.addEventListener('click', createStandaloneCampaign);
+    if (campaignSelectEl) campaignSelectEl.addEventListener('change', selectStandaloneCampaign);
+    if (clearCampaignBtn) clearCampaignBtn.addEventListener('click', clearStandaloneCampaign);
+    if (copyChatCampaignBtn) copyChatCampaignBtn.addEventListener('click', copyChatItemsToCampaign);
     if (clearBackgroundBtn) clearBackgroundBtn.addEventListener('click', clearChatBackground);
     if (bgSourceEl) {
       bgSourceEl.addEventListener('change', () => saveBackgroundSourcePreference(bgSourceEl.value));
@@ -1298,6 +1701,12 @@
     });
     resetBtn.addEventListener('click', resetForm);
     formEl.addEventListener('submit', handleFormSubmit);
+    if (scopeEl) scopeEl.addEventListener('change', () => {
+      if (scopeEl.value === 'campaign' && !state.activeCampaign) {
+        scopeEl.value = 'chat';
+        setStatus('Select or create a campaign before using Campaign scope.', 'info');
+      }
+    });
 
     [searchEl, filterTypeEl, filterScopeEl].forEach((el) => el.addEventListener('input', renderList));
 

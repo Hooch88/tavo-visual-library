@@ -1,9 +1,8 @@
 {
   "plugin.name": "Tavo Visual Library",
-  "plugin.description": "Import character and place images, organize them into a gallery, and invoke them in chat with /show.",
+  "plugin.description": "Import character and place images into chat, campaign, or global libraries and invoke them in chat with /show.",
   "actions.openLibrary": "Open Visual Library",
   "actions.testSmartInvocation": "Test Smart Invocation",
-  "actions.resetSmartCooldown": "Reset Smart Cooldown"
-,
+  "actions.resetSmartCooldown": "Reset Smart Cooldown",
   "actions.restoreThemeBackground": "Restore Theme Background"
 }

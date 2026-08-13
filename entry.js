@@ -1,6 +1,10 @@
 (function () {
   const UI_STATE_KEY = 'tvl_ui_state';
   const CATALOG_KEY = 'tvl_catalog';
+  const CAMPAIGN_CATALOG_PREFIX = 'tvl_campaign_catalog_v1.';
+  const CAMPAIGN_SELECTION_KEY = 'tvl_campaign_selection_v1';
+  const CAMPAIGN_IDENTITY_KEY = 'com.hooch88.tavo.campaignIdentity';
+  const STORYSTATE_KEY = 'storyState.state';
   const AUTO_HISTORY_KEY = 'tvl_auto_history_v2';
   const AUTO_PROCESSED_WINDOW_MS = 15000;
   const inFlightFingerprints = new Set();
@@ -179,27 +183,38 @@
       if (best) candidates.push(best);
     }
 
-    // If the exact same textual form points to multiple entries, discard that form.
-    const counts = new Map();
+    // Scope precedence prevents a safe Chat -> Campaign copy from making Smart
+    // Invocation ambiguous. The nearest scope wins: This Chat > Campaign > Global.
+    // If two entries at the same winning scope share the exact same textual form,
+    // that form is still considered ambiguous and is discarded.
+    const grouped = new Map();
     for (const candidate of candidates) {
       const key = normalizeText(candidate.matchedName);
-      counts.set(key, (counts.get(key) || 0) + 1);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(candidate);
     }
 
-    const unambiguous = candidates.filter((candidate) => counts.get(normalizeText(candidate.matchedName)) === 1);
+    const unambiguous = [];
+    for (const group of grouped.values()) {
+      const bestScope = Math.max(...group.map((candidate) => scopeRank(candidate.item.scope)));
+      const winners = group.filter((candidate) => scopeRank(candidate.item.scope) === bestScope);
+      if (winners.length === 1) unambiguous.push(winners[0]);
+    }
+
     unambiguous.sort((a, b) => {
       // Narrative focus: the most recently mentioned eligible entry wins.
       if (a.matchedIndex !== b.matchedIndex) return b.matchedIndex - a.matchedIndex;
       if (a.kindRank !== b.kindRank) return b.kindRank - a.kindRank;
       if (b.matchedName.length !== a.matchedName.length) return b.matchedName.length - a.matchedName.length;
-      if (a.item.scope !== b.item.scope) return a.item.scope === 'chat' ? -1 : 1;
+      if (a.item.scope !== b.item.scope) return scopeRank(b.item.scope) - scopeRank(a.item.scope);
       return String(a.item.name || '').localeCompare(String(b.item.name || ''));
     });
     return unambiguous;
   }
 
   function autoHistoryKey(entry) {
-    return `${entry.scope || 'chat'}:${entry.id || normalizeText(entry.name)}`;
+    const campaignPart = entry.scope === 'campaign' ? `:${entry.campaignId || 'unknown'}` : '';
+    return `${entry.scope || 'chat'}${campaignPart}:${entry.id || normalizeText(entry.name)}`;
   }
 
   function getAutoHistory() {
@@ -233,7 +248,67 @@
     return String(value || '').replace(/([\\`*_{}\[\]()#+\-.!|>])/g, '\\$1');
   }
 
-  async function getCatalog(scope) {
+  function safeText(value, max = 120) {
+    return String(value == null ? '' : value).trim().slice(0, max);
+  }
+
+  function campaignCatalogKey(campaignId) {
+    return `${CAMPAIGN_CATALOG_PREFIX}${safeText(campaignId, 120)}`;
+  }
+
+  function getStoryStateCampaign() {
+    try {
+      const shared = tavo.get(CAMPAIGN_IDENTITY_KEY, 'chat');
+      const sharedId = safeText(shared && shared.id, 120);
+      if (sharedId) {
+        return { id: sharedId, name: safeText(shared && shared.name, 120) || 'Campaign', source: 'storystate' };
+      }
+
+      // Backward-compatible fallback for StoryState dev6, before the compact
+      // cross-plugin campaign identity bridge was published.
+      const storyState = tavo.get(STORYSTATE_KEY, 'chat');
+      const campaign = storyState && typeof storyState === 'object' ? storyState.campaign : null;
+      const id = safeText(campaign && campaign.id, 120);
+      if (!id) return null;
+      return { id, name: safeText(campaign && campaign.name, 120) || 'Campaign', source: 'storystate' };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getManualCampaignSelection() {
+    try {
+      const selected = tavo.get(CAMPAIGN_SELECTION_KEY, 'chat');
+      const id = safeText(selected && selected.id, 120);
+      if (!id) return null;
+      return { id, name: safeText(selected && selected.name, 120) || 'Campaign', source: 'manual' };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function getActiveCampaign() {
+    return getStoryStateCampaign() || getManualCampaignSelection();
+  }
+
+  function scopeRank(scope) {
+    if (scope === 'chat') return 3;
+    if (scope === 'campaign') return 2;
+    if (scope === 'global') return 1;
+    return 0;
+  }
+
+  function physicalFileScope(scope) {
+    return scope === 'campaign' ? 'global' : (scope || 'chat');
+  }
+
+  async function getCatalog(scope, campaignId = null) {
+    if (scope === 'campaign') {
+      const id = safeText(campaignId, 120);
+      if (!id) return [];
+      const value = tavo.get(campaignCatalogKey(id), 'global');
+      return Array.isArray(value) ? value : [];
+    }
     const value = tavo.get(CATALOG_KEY, scope);
     return Array.isArray(value) ? value : [];
   }
@@ -243,20 +318,29 @@
     tavo.set(UI_STATE_KEY, { ...current, ...patch });
   }
 
-  function hydrate(items, scope) {
+  function hydrate(items, scope, campaign = null) {
     return (items || []).map((item) => ({
       ...item,
       scope,
+      campaignId: scope === 'campaign' ? (safeText(item.campaignId, 120) || campaign?.id || null) : null,
+      campaignName: scope === 'campaign' ? (safeText(item.campaignName, 120) || campaign?.name || 'Campaign') : null,
+      fileScope: item.fileScope || physicalFileScope(scope),
       aliases: Array.isArray(item.aliases) ? item.aliases : []
     }));
   }
 
   async function getAllItems() {
-    const [chatItems, globalItems] = await Promise.all([
+    const campaign = getActiveCampaign();
+    const [chatItems, campaignItems, globalItems] = await Promise.all([
       getCatalog('chat'),
+      campaign ? getCatalog('campaign', campaign.id) : Promise.resolve([]),
       getCatalog('global')
     ]);
-    return [...hydrate(chatItems, 'chat'), ...hydrate(globalItems, 'global')];
+    return [
+      ...hydrate(chatItems, 'chat'),
+      ...hydrate(campaignItems, 'campaign', campaign),
+      ...hydrate(globalItems, 'global')
+    ];
   }
 
   function dedupeStrings(values) {
@@ -275,7 +359,7 @@
     let query = String(rawQuery || '').trim();
     let scopeFilter = null;
 
-    const scoped = query.match(/^(chat|global)\s*:\s*(.+)$/i);
+    const scoped = query.match(/^(chat|campaign|global)\s*:\s*(.+)$/i);
     if (scoped) {
       scopeFilter = scoped[1].toLowerCase();
       query = scoped[2].trim();
@@ -316,23 +400,25 @@
     }
 
     const sortMatches = (a, b) => {
-      if (a.scope !== b.scope) return a.scope === 'chat' ? -1 : 1;
+      if (a.scope !== b.scope) return scopeRank(b.scope) - scopeRank(a.scope);
       return String(a.name || '').localeCompare(String(b.name || ''));
     };
 
-    exact.sort(sortMatches);
-    partial.sort(sortMatches);
+    const choose = (matches) => {
+      if (!matches.length) return null;
+      matches.sort(sortMatches);
+      if (scopeFilter) return matches.length === 1 ? { type: 'entry', entry: matches[0] } : { type: 'ambiguous', matches, query };
+      const bestRank = scopeRank(matches[0].scope);
+      const winners = matches.filter((item) => scopeRank(item.scope) === bestRank);
+      return winners.length === 1 ? { type: 'entry', entry: winners[0] } : { type: 'ambiguous', matches: winners, query };
+    };
 
-    if (exact.length === 1) return { type: 'entry', entry: exact[0] };
-    if (exact.length > 1) return { type: 'ambiguous', matches: exact, query };
-    if (partial.length === 1) return { type: 'entry', entry: partial[0] };
-    if (partial.length > 1) return { type: 'ambiguous', matches: partial, query };
-    return { type: 'not-found', query };
+    return choose(exact) || choose(partial) || { type: 'not-found', query };
   }
 
   function buildImagePath(entry) {
     if (entry.path) return entry.path;
-    return tavo.file.url(entry.fileName, entry.scope || 'chat');
+    return tavo.file.url(entry.fileName, entry.fileScope || physicalFileScope(entry.scope));
   }
 
   function buildVisualMessage(entry) {
@@ -373,6 +459,22 @@
     const result = await tavo.message.append(message);
     if (!result) throw new Error('Unable to append the visual reference message.');
     return result;
+  }
+
+  if (typeof __tvlTestHarness !== 'undefined' && __tvlTestHarness) {
+    Object.assign(__tvlTestHarness, {
+      campaignCatalogKey,
+      getStoryStateCampaign,
+      getManualCampaignSelection,
+      getActiveCampaign,
+      scopeRank,
+      physicalFileScope,
+      getCatalog,
+      getAllItems,
+      resolveMatches,
+      findAutoMatches,
+      autoHistoryKey
+    });
   }
 
   tavo.plugin.on('sidebar:open-visual-library', async () => {

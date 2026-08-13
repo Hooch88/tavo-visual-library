@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- Add Campaign scope between This Chat and Global.
+- Automatically bind Campaign scope to StoryState's stable campaign ID when available.
+- Add standalone create/select campaign support when StoryState is not installed.
+- Add safe **Copy This Chat → Campaign** migration that leaves chat originals untouched.
+- Keep campaign image files in Tavo global file storage while isolating catalogs by campaign ID.
+- Add `/show campaign:Name` and scope precedence: This Chat → Campaign → Global.
+- Keep Smart Invocation deterministic after chat entries are copied into Campaign scope.
+
 ## 1.2.2
 
 - Make source-URL place backgrounds the recommended/default mode after live Tavo testing.
