@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
 VERSION="$(python - <<'PY'
 import json, pathlib
 manifest = pathlib.Path('manifest.json')
@@ -11,7 +13,6 @@ PY
 OUT_DIR="$ROOT/dist"
 OUT_FILE="$OUT_DIR/tavo-visual-library-$VERSION.tpg"
 
-cd "$ROOT"
 mkdir -p "$OUT_DIR"
 rm -f "$OUT_FILE"
 
