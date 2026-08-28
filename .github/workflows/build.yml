@@ -3,6 +3,7 @@ name: Build Tavo Plugin
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -24,6 +25,9 @@ jobs:
 
       - name: Validate entry script
         run: node --check entry.js
+
+      - name: Run regression tests
+        run: node tests/campaign-scope.test.cjs
 
       - name: Validate panel script
         run: |
