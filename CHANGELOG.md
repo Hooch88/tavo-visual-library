@@ -16,6 +16,15 @@
 
 # Changelog
 
+## 1.5.0 — 2026-08-28
+
+- Use Tavo's native file picker as the recommended image import path.
+- Bound URL downloads, file reads, payload size, and HTML page inspection; clean up failed probes.
+- Default place backgrounds to the saved local Tavo file, with the original URL retained as a fallback.
+- Run Smart Invocation only from the post-save `message:added` event to avoid duplicate/racy image bubbles.
+- Raise the minimum Tavo version to 1.0.0 because the panel uses the image-element preview API.
+- Run the existing regression suite on pull requests and main-branch builds.
+
 ## 1.3.0
 
 - Add Campaign scope between This Chat and Global.

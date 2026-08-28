@@ -695,21 +695,4 @@
     }
   });
 
-  // Fallback for generation flows where a saved-message notification is delayed or
-  // unavailable. The content fingerprint prevents a second image when message:added
-  // has already completed the same reply.
-  tavo.plugin.on('generation:success', async (event) => {
-    const mode = String(getConfig('autoShowMode', 'off'));
-    if (mode === 'off') return;
-    const text = String(event && event.text || '');
-    if (!text.trim()) return;
-    const fingerprint = simpleFingerprint(text);
-
-    setTimeout(() => {
-      runSmartInvocation(text, { fingerprint }).catch((error) => {
-        console.error('[Tavo Visual Library] Deferred Smart Invocation failed:', error);
-      });
-    }, 1200);
-  });
-
 })();

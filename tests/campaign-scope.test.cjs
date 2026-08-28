@@ -105,6 +105,15 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'entry.js'), 'utf8
   assert(html.includes("tavo.file.load(item.fileName, { scope: sourceStorageScope, encoding: 'dataUrl' })"), 'Bulk moves across physical scopes must read the stored image bytes.');
   assert(html.includes("tavo.file.save(newFileName, dataUrl, { scope: targetStorageScope, encoding: 'dataUrl' })"), 'Bulk moves across physical scopes must save a verified destination image.');
   assert(html.includes('state.selectedKeys = new Set(failed.map((item) => item.key))'), 'Failed bulk items should remain selected for correction/retry.');
+  assert(html.includes('id="tvl-pick-image"'), 'Tavo 1.2.7 native image import must be the primary path.');
+  assert(html.includes('tavo.file.import({'), 'Device imports must use the native Tavo file picker.');
+  assert(html.includes('MAX_IMAGE_BYTES = 20 * 1024 * 1024'), 'Image imports must have a fixed size ceiling.');
+  assert(html.includes('URL_SAVE_TIMEOUT_MS = 30000'), 'URL imports must have a bounded wait.');
+  assert(html.includes("saved == null ? 'local' : saved"), 'Local Tavo files must be the default place-background source.');
+
+  const entrySource = fs.readFileSync(path.join(__dirname, '..', 'entry.js'), 'utf8');
+  assert(!entrySource.includes("tavo.plugin.on('generation:success'"), 'Smart Invocation must not race the post-save message event.');
+  assert(entrySource.includes("tavo.plugin.on('message:added'"), 'Smart Invocation must run after the assistant message is saved.');
 
   console.log('Visual Library campaign-scope and bulk-management tests passed.');
 })().catch((error) => {
