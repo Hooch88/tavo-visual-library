@@ -192,7 +192,10 @@
 <style>
   .tvl-root {
     position: fixed;
-    inset: 0;
+    top: var(--tavo-inset-top-bar, 48px);
+    bottom: var(--tavo-inset-bottom-input, 72px);
+    left: 0;
+    right: 0;
     z-index: 9999;
     display: flex;
     justify-content: flex-end;
@@ -210,7 +213,7 @@
   .tvl-panel {
     position: relative;
     width: min(460px, 96vw);
-    height: 100vh;
+    height: 100%;
     background: #141414;
     color: #f3f3f3;
     box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35);

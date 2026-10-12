@@ -4,7 +4,7 @@
   "name": {
     "$t": "plugin.name"
   },
-  "version": "1.5.0",
+  "version": "1.5.1",
   "minAppVersion": "1.0.0",
   "entry": "entry.js",
   "author": "Jeremy / OpenAI",
@@ -112,5 +112,6 @@
         }
       ]
     }
-  }
+  },
+  "releaseNotes": "Keep library controls within Tavo layout insets and size the panel to the available chat area. Includes prior release-safe import fixes."
 }
