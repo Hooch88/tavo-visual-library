@@ -699,6 +699,7 @@
   const FILE_READ_TIMEOUT_MS = 15000;
   const DEVICE_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif', 'heic', 'heif'];
   let selectedImportedFile = null;
+  let importGeneration = 0;
   const state = {
     items: [],
     editing: null,
@@ -1165,13 +1166,16 @@
   }
 
   async function discardSelectedImport() {
+    const generation = ++importGeneration;
     const abandoned = selectedImportedFile;
     selectedImportedFile = null;
     updatePickedImageUi();
     if (abandoned) await deleteIfExists(abandoned.path || abandoned.fileName, abandoned.fileScope);
+    return generation;
   }
 
   function releaseSelectedImport() {
+    ++importGeneration;
     const selected = selectedImportedFile;
     selectedImportedFile = null;
     updatePickedImageUi();
@@ -1235,7 +1239,9 @@
   }
 
   function refreshCampaignContext() {
-    state.activeCampaign = resolveActiveCampaign();
+    const campaign = resolveActiveCampaign();
+    if (scopeEl.value === 'campaign' && campaign?.id !== state.activeCampaign?.id) void discardSelectedImport();
+    state.activeCampaign = campaign;
     state.campaigns = getCampaignRegistry().items;
     renderCampaignControls();
   }
@@ -1901,7 +1907,11 @@
       return;
     }
 
-    await discardSelectedImport();
+    const generation = await discardSelectedImport();
+    if (generation !== importGeneration) return;
+    const isCurrent = () => generation === importGeneration && scopeEl.value === logicalScope &&
+      (logicalScope !== 'campaign' || (state.activeCampaign || resolveActiveCampaign())?.id === targetCampaign.id);
+    if (!isCurrent()) return;
     setStatus('Opening Tavo image picker…');
     try {
       const storageScope = physicalFileScope(logicalScope);
@@ -1912,6 +1922,10 @@
         conflict: 'rename'
       });
       const file = Array.isArray(imported) ? imported[0] : null;
+      if (!isCurrent()) {
+        if (file) await deleteIfExists(file.path || file.name, storageScope);
+        return;
+      }
       if (!file) {
         clearStatus();
         return;
@@ -1939,7 +1953,7 @@
       setStatus(`Selected ${selectedImportedFile.originalFileName}. Save the entry to add it to the library.`, 'success');
     } catch (error) {
       console.error('[Tavo Visual Library] Device image import failed:', error);
-      setStatus(`Could not import the selected image: ${error.message || 'Unknown error'}`, 'error');
+      if (isCurrent()) setStatus(`Could not import the selected image: ${error.message || 'Unknown error'}`, 'error');
     }
   }
 
@@ -2209,7 +2223,7 @@
     });
     if (pickImageBtn) pickImageBtn.addEventListener('click', chooseImageFromDevice);
     if (imageUrlEl) imageUrlEl.addEventListener('input', () => {
-      if (imageUrlEl.value.trim() && selectedImportedFile) void discardSelectedImport();
+      if (imageUrlEl.value.trim()) void discardSelectedImport();
     });
     resetBtn.addEventListener('click', resetForm);
     formEl.addEventListener('submit', handleFormSubmit);

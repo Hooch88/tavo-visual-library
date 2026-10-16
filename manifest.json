@@ -4,7 +4,7 @@
   "name": {
     "$t": "plugin.name"
   },
-  "version": "1.5.1",
+  "version": "1.5.2",
   "minAppVersion": "1.0.0",
   "entry": "entry.js",
   "author": "Jeremy / OpenAI",
@@ -113,5 +113,5 @@
       ]
     }
   },
-  "releaseNotes": "Keep library controls within Tavo layout insets and size the panel to the available chat area. Includes prior release-safe import fixes."
+  "releaseNotes": "Discard stale device-picker results after form, scope or campaign changes; preserve the latest image selection."
 }

@@ -4,7 +4,7 @@ A Tavo plugin for reusable **character** and **place** images in AI role-playing
 
 Tavo Visual Library can import images with Tavo's native file picker or from bounded URL downloads, store a local copy in Tavo, organize entries by chat/campaign/global scope, display saved portraits without advancing the story, and optionally invoke visuals automatically when the narrator mentions a saved character or place.
 
-**Current version: 1.5.0**
+**Current maintenance version: 1.5.2** (on `codex/tavo-1.7.0`; not yet merged into `main`).
 
 ## Features
 
