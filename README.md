@@ -2,9 +2,9 @@
 
 A Tavo plugin for reusable **character** and **place** images in AI role-playing chats.
 
-Tavo Visual Library can import images from direct image URLs or supported image-host sharing pages, store a local copy in Tavo, organize entries by chat/campaign/global scope, display saved portraits without advancing the story, and optionally invoke visuals automatically when the narrator mentions a saved character or place.
+Tavo Visual Library can import images with Tavo's native file picker or from bounded URL downloads, store a local copy in Tavo, organize entries by chat/campaign/global scope, display saved portraits without advancing the story, and optionally invoke visuals automatically when the narrator mentions a saved character or place.
 
-**Current version: 1.4.0**
+**Current maintenance version: 1.5.2** (on `codex/tavo-1.7.0`; not yet merged into `main`).
 
 ## Features
 
@@ -17,7 +17,8 @@ Tavo Visual Library can import images from direct image URLs or supported image-
 - Batch Character/Place category changes
 - Batch This Chat/Campaign/Global location moves
 - Name, aliases, and description metadata
-- Import from direct image URLs
+- Native device image picker on Tavo 1.2.7
+- Bounded fallback import from direct image URLs
 - Automatic resolution of common image-host page URLs such as ImgBB sharing pages
 - Local image persistence through Tavo file storage
 - Image preview, edit, and delete controls
@@ -32,16 +33,12 @@ Tavo Visual Library can import images from direct image URLs or supported image-
 
 ## Place Background Note
 
-Live testing found that Tavo currently renders place backgrounds reliably when the plugin uses the original imported **source URL**.
+Tavo 1.x supports plugin-owned `files/...` paths for chat backgrounds. Version 1.5.0 therefore defaults to:
 
-The same images work normally from Tavo local storage in the gallery, preview, and chat bubbles, but a local Tavo file path may render as a black background when used through `tavo.chat.update({ background: ... })`.
+- **Local Tavo copy — recommended**
+- **Original source URL — fallback**
 
-For that reason, v1.4.0 defaults to:
-
-- **Source URL — recommended**
-- **Local Tavo copy — experimental**
-
-The gallery itself still keeps Tavo's local stored copy.
+Existing users who previously selected the source-URL preference keep that selection until they change it.
 
 ## Installation
 
@@ -70,7 +67,7 @@ Windows PowerShell:
 The resulting package is written to:
 
 ```text
-dist/tavo-visual-library-1.4.0.tpg
+dist/tavo-visual-library-1.5.0.tpg
 ```
 
 Then:
@@ -142,9 +139,9 @@ Matching supports saved names, aliases, and unique parts of canonical names. The
 
 ## Image Import
 
-Tavo's Android plugin surface does not currently expose a native photo-library picker to plugins, so imports begin from a URL.
+Tavo 1.2.7's native file picker is the recommended import path. The plugin accepts common image formats up to 20 MB and stores the selected file in the entry's physical chat/global scope.
 
-For supported sharing pages, the plugin attempts to locate the real image automatically, validates that the downloaded bytes are an image, then saves its own Tavo copy.
+URL import remains available for supported sharing pages. Downloads and reads have time limits, payloads are capped at 20 MB, page inspection is capped at 2 MB, and failed probes are removed.
 
 ## Permissions
 
@@ -155,7 +152,6 @@ The plugin requests:
 - `variable` — store gallery and Smart Invocation state
 - `file` — persist imported images
 - `network` — retrieve image URLs/pages during import
-- `generate` — receive generation lifecycle notifications for Smart Invocation
 
 ## Source Layout
 
@@ -177,4 +173,4 @@ tests/
 
 ## Development Status
 
-Version 1.4.0 adds bulk library management on top of the campaign-scoped visual continuity introduced in 1.3.x. Multi-select category and library-location changes should be validated on-device with a mix of This Chat, Campaign, and Global entries.
+Version 1.5.0 hardens the Tavo 1.2.7 import and invocation paths while retaining the campaign and bulk-management features from 1.3–1.4. Device-picker imports and local place backgrounds should be validated on Android before release.

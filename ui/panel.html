@@ -88,8 +88,8 @@
           <div>
             <label for="tvl-bg-source">Place background source</label>
             <select id="tvl-bg-source">
-              <option value="remote">Source URL — recommended</option>
-              <option value="local">Local Tavo copy — experimental</option>
+              <option value="local">Local Tavo copy — recommended</option>
+              <option value="remote">Original source URL — fallback</option>
             </select>
           </div>
           <div>
@@ -97,7 +97,7 @@
             <input id="tvl-bg-opacity" type="range" min="0.15" max="0.95" step="0.05" value="0.45" />
           </div>
         </div>
-        <small>Place backgrounds currently work more reliably with <strong>Source URL — recommended</strong>. <strong>Local Tavo copy — experimental</strong> may render as a black background in the current Tavo app.</small>
+        <small>Place backgrounds use the saved Tavo file by default. The original source URL remains available as a fallback for older imports.</small>
       </div>
       <div id="tvl-empty" class="tvl-empty">
         No visual references yet. Tap <strong>Import New Image</strong> to add your first character or place.
@@ -140,9 +140,12 @@
           <textarea id="tvl-description" rows="4" placeholder="Short visual or narrative note."></textarea>
         </div>
         <div class="tvl-field-group">
-          <label>Image or Image-Page URL <span>(required for new entries)</span></label>
+          <label>Image <span>(required for new entries)</span></label>
+          <button type="button" id="tvl-pick-image" class="tvl-secondary-btn">Choose Image From Device</button>
+          <small id="tvl-picked-image">No device image selected.</small>
+          <label for="tvl-image-url">Or use an image or image-page URL <span>(optional)</span></label>
           <input id="tvl-image-url" type="url" inputmode="url" placeholder="https://example.com/image.jpg or https://ibb.co/abcdef" />
-          <small>Direct image links and supported host pages such as ImgBB share links are accepted. Visual Library will locate the image and copy it into Tavo.</small>
+          <small>The device picker is recommended. URL imports accept direct image links and supported host pages, and are limited to 20 MB.</small>
         </div>
         <div class="tvl-local-note">
           <strong>Saved locally:</strong> After a successful import, the gallery uses Tavo's stored copy. The source URL is not needed to display the image later.
@@ -160,7 +163,7 @@
         <h3>Usage</h3>
         <ul>
           <li><strong>Open Visual Library</strong> from the chat right sidebar.</li>
-          <li>Import an <strong>image URL or supported page URL</strong> into <strong>This Chat</strong>, the current <strong>Campaign</strong>, or the <strong>Global</strong> library.</li>
+          <li>Choose an image from your device, or import an <strong>image URL or supported page URL</strong>, into <strong>This Chat</strong>, the current <strong>Campaign</strong>, or the <strong>Global</strong> library.</li>
           <li>Use <strong>Show in Chat</strong> on any entry to place its image into the conversation.</li>
           <li>For <strong>Place</strong> entries, use <strong>Set Background</strong> to apply that image as the current chat background.</li>
           <li>Type <code>/show Name</code> in the input box to invoke a saved entry by name or alias. Typing <code>/show</code> by itself opens the library.</li>
@@ -168,9 +171,9 @@
         </ul>
         <h3>Notes</h3>
         <ul>
-          <li>URL-imported images are downloaded and stored locally using Tavo's file storage.</li>
+          <li>Device and URL-imported images are stored locally using Tavo's file storage.</li>
           <li>ImgBB viewing-page links such as <code>https://ibb.co/...</code> are now supported. The plugin will attempt to extract the real <code>i.ibb.co/...</code> image automatically.</li>
-          <li>Tavo currently does not expose the Android photo-library/file picker to plugins, so imports begin from a URL.</li>
+          <li>Tavo 1.2.7's native file picker is the recommended import path. URL import remains available as a bounded fallback.</li>
           <li><strong>This Chat</strong> entries stay with the current chat. <strong>Campaign</strong> entries follow one campaign across sessions without appearing in unrelated campaigns. <strong>Global</strong> entries can be reused everywhere.</li>
           <li>When StoryState is installed, Visual Library automatically uses StoryState's current campaign ID. Without StoryState, create or select a campaign in the Library tab.</li>
           <li><strong>Copy This Chat → Campaign</strong> safely duplicates chat-scoped images into the current campaign library; the original chat entries are left untouched.</li>
@@ -189,7 +192,10 @@
 <style>
   .tvl-root {
     position: fixed;
-    inset: 0;
+    top: var(--tavo-inset-top-bar, 48px);
+    bottom: var(--tavo-inset-bottom-input, 72px);
+    left: 0;
+    right: 0;
     z-index: 9999;
     display: flex;
     justify-content: flex-end;
@@ -207,7 +213,7 @@
   .tvl-panel {
     position: relative;
     width: min(460px, 96vw);
-    height: 100vh;
+    height: 100%;
     background: #141414;
     color: #f3f3f3;
     box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35);
@@ -687,6 +693,13 @@
   const STORYSTATE_KEY = 'storyState.state';
   const BACKGROUND_OPACITY_KEY = 'tvl_place_background_opacity';
   const BACKGROUND_SOURCE_KEY = 'tvl_place_background_source';
+  const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+  const MAX_HTML_CHARS = 2 * 1024 * 1024;
+  const URL_SAVE_TIMEOUT_MS = 30000;
+  const FILE_READ_TIMEOUT_MS = 15000;
+  const DEVICE_IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'avif', 'heic', 'heif'];
+  let selectedImportedFile = null;
+  let importGeneration = 0;
   const state = {
     items: [],
     editing: null,
@@ -695,7 +708,7 @@
     currentBackgroundImage: null,
     currentBackgroundOpacity: null,
     placeBackgroundOpacity: 0.45,
-    placeBackgroundSource: 'remote',
+    placeBackgroundSource: 'local',
     activeCampaign: null,
     campaigns: [],
     selectedKeys: new Set(),
@@ -738,6 +751,8 @@
   const saveBtn = document.getElementById('tvl-save-btn');
   const formEl = document.getElementById('tvl-form');
   const imageUrlEl = document.getElementById('tvl-image-url');
+  const pickImageBtn = document.getElementById('tvl-pick-image');
+  const pickedImageEl = document.getElementById('tvl-picked-image');
 
   const editingIdEl = document.getElementById('tvl-editing-id');
   const editingScopeEl = document.getElementById('tvl-editing-scope');
@@ -785,6 +800,16 @@
 
   function safeText(value, max = 120) {
     return String(value == null ? '' : value).trim().slice(0, max);
+  }
+
+  function withTimeout(promise, timeoutMs, label) {
+    let timer;
+    return Promise.race([
+      Promise.resolve(promise),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.ceil(timeoutMs / 1000)} seconds.`)), timeoutMs);
+      })
+    ]).finally(() => clearTimeout(timer));
   }
 
   function makeCampaignId() {
@@ -1029,7 +1054,7 @@
 
   function loadBackgroundSourcePreference() {
     const saved = tavo.get(BACKGROUND_SOURCE_KEY, 'global');
-    state.placeBackgroundSource = sanitizeBackgroundSource(saved == null ? 'remote' : saved);
+    state.placeBackgroundSource = sanitizeBackgroundSource(saved == null ? 'local' : saved);
     updateBackgroundSourceUi();
   }
 
@@ -1071,7 +1096,7 @@
       await refreshBackgroundState();
       renderList();
       const percent = Math.round(opacity * 100);
-      const sourceLabel = source === 'remote' ? 'source URL' : 'local Tavo copy (experimental)';
+      const sourceLabel = source === 'remote' ? 'source URL fallback' : 'local Tavo copy';
       setStatus(`Set ${item.name} as this chat's background from the ${sourceLabel} (${percent}% opacity).`, 'success');
       if (typeof tavo.utils.toast === 'function') tavo.utils.toast(`Background set: ${item.name}`);
     } catch (error) {
@@ -1133,13 +1158,39 @@
     });
   }
 
+  function updatePickedImageUi() {
+    if (!pickedImageEl) return;
+    pickedImageEl.textContent = selectedImportedFile
+      ? `Selected: ${selectedImportedFile.originalFileName || selectedImportedFile.fileName}`
+      : 'No device image selected.';
+  }
+
+  async function discardSelectedImport() {
+    const generation = ++importGeneration;
+    const abandoned = selectedImportedFile;
+    selectedImportedFile = null;
+    updatePickedImageUi();
+    if (abandoned) await deleteIfExists(abandoned.path || abandoned.fileName, abandoned.fileScope);
+    return generation;
+  }
+
+  function releaseSelectedImport() {
+    ++importGeneration;
+    const selected = selectedImportedFile;
+    selectedImportedFile = null;
+    updatePickedImageUi();
+    return selected;
+  }
+
   function resetForm() {
+    void discardSelectedImport();
     state.editing = null;
     editingIdEl.value = '';
     editingScopeEl.value = '';
     editingCampaignIdEl.value = '';
     formEl.reset();
     imageUrlEl.placeholder = 'https://example.com/image.jpg or https://ibb.co/abcdef';
+    updatePickedImageUi();
     if (saveBtn) saveBtn.textContent = 'Save to Library';
     renderCampaignControls();
     clearStatus();
@@ -1188,7 +1239,9 @@
   }
 
   function refreshCampaignContext() {
-    state.activeCampaign = resolveActiveCampaign();
+    const campaign = resolveActiveCampaign();
+    if (scopeEl.value === 'campaign' && campaign?.id !== state.activeCampaign?.id) void discardSelectedImport();
+    state.activeCampaign = campaign;
     state.campaigns = getCampaignRegistry().items;
     renderCampaignControls();
   }
@@ -1607,6 +1660,7 @@
   }
 
   function editItem(item) {
+    void discardSelectedImport();
     state.editing = item;
     editingIdEl.value = item.id;
     editingScopeEl.value = item.scope;
@@ -1774,34 +1828,133 @@
 
   async function probeUrlContent(url, scope, entryName) {
     const probeName = buildProbeFileName(entryName, 'bin');
-    const path = await tavo.file.save(probeName, url, { scope });
-    if (!path) throw new Error('Tavo did not return a saved file path.');
+    let path = null;
+    let acceptDownload = true;
+    const downloadPromise = Promise.resolve(tavo.file.save(probeName, url, { scope }));
+    downloadPromise.then((latePath) => {
+      if (!acceptDownload) void deleteIfExists(latePath || probeName, scope);
+    }).catch(() => {});
+    try {
+      path = await withTimeout(downloadPromise, URL_SAVE_TIMEOUT_MS, 'URL download');
+      if (!path) throw new Error('Tavo did not return a saved file path.');
 
-    const base64 = await tavo.file.load(probeName, { scope, encoding: 'base64' });
-    const imageInfo = base64 ? detectImageInfo(base64) : null;
-    if (imageInfo) {
-      return { kind: 'image', probeName, base64, imageInfo, path };
+      const metadata = await withTimeout((async () => {
+        let cursor;
+        do {
+          const page = await tavo.file.list({ scope, limit: 200, cursor });
+          const match = page && Array.isArray(page.files)
+            ? page.files.find((file) => file && (file.path === path || file.name === probeName))
+            : null;
+          if (match) return match;
+          cursor = page && page.nextCursor;
+        } while (cursor);
+        return null;
+      })(), FILE_READ_TIMEOUT_MS, 'Downloaded-file inspection');
+      if (metadata && Number(metadata.size) > MAX_IMAGE_BYTES) {
+        throw new Error('The downloaded file is larger than the 20 MB import limit.');
+      }
+
+      const base64 = await withTimeout(
+        tavo.file.load(probeName, { scope, encoding: 'base64' }),
+        FILE_READ_TIMEOUT_MS,
+        'Downloaded-file read'
+      );
+      const approximateBytes = Math.ceil(String(base64 || '').length * 3 / 4);
+      if (approximateBytes > MAX_IMAGE_BYTES) throw new Error('The downloaded file is larger than the 20 MB import limit.');
+      const imageInfo = base64 ? detectImageInfo(base64) : null;
+      if (imageInfo) return { kind: 'image', probeName, base64, imageInfo, path };
+
+      const text = await withTimeout(
+        tavo.file.load(probeName, { scope, encoding: 'utf8' }),
+        FILE_READ_TIMEOUT_MS,
+        'Image-page read'
+      );
+      if (String(text || '').length > MAX_HTML_CHARS) throw new Error('The image page is too large to inspect safely.');
+      if (text && looksLikeHtmlText(text)) return { kind: 'html', probeName, text, path };
+      return { kind: 'other', probeName, text, path };
+    } catch (error) {
+      acceptDownload = false;
+      await deleteIfExists(path || probeName, scope);
+      throw error;
     }
-
-    const text = await tavo.file.load(probeName, { scope, encoding: 'utf8' });
-    if (text && looksLikeHtmlText(text)) {
-      return { kind: 'html', probeName, text, path };
-    }
-
-    return { kind: 'other', probeName, text, path };
   }
 
   async function deleteIfExists(name, scope) {
     if (!name) return;
-    try { await tavo.file.delete(name, { scope }); } catch (e) {}
+    try {
+      if (/^files\//.test(String(name))) await tavo.file.delete(name);
+      else await tavo.file.delete(name, { scope });
+    } catch (e) {}
   }
 
   async function finalizeProbeAsImage(probe, sourceUrlForNaming, storageScope, entryName, campaignId = null) {
     const finalName = buildStoredFileNameFromUrl(sourceUrlForNaming, entryName, probe.imageInfo.ext, campaignId);
     const dataUrl = `data:${probe.imageInfo.mime};base64,${probe.base64}`;
-    const path = await tavo.file.save(finalName, dataUrl, { scope: storageScope, encoding: 'dataUrl' });
+    const path = await withTimeout(
+      tavo.file.save(finalName, dataUrl, { scope: storageScope, encoding: 'dataUrl' }),
+      FILE_READ_TIMEOUT_MS,
+      'Local image save'
+    );
     await deleteIfExists(probe.probeName, storageScope);
     return { fileName: finalName, path, fileScope: storageScope };
+  }
+
+  async function chooseImageFromDevice() {
+    const logicalScope = scopeEl.value;
+    const targetCampaign = logicalScope === 'campaign' ? (state.activeCampaign || resolveActiveCampaign()) : null;
+    if (logicalScope === 'campaign' && !targetCampaign) {
+      setStatus('Select or create a campaign before importing into Campaign scope.', 'error');
+      return;
+    }
+
+    const generation = await discardSelectedImport();
+    if (generation !== importGeneration) return;
+    const isCurrent = () => generation === importGeneration && scopeEl.value === logicalScope &&
+      (logicalScope !== 'campaign' || (state.activeCampaign || resolveActiveCampaign())?.id === targetCampaign.id);
+    if (!isCurrent()) return;
+    setStatus('Opening Tavo image picker…');
+    try {
+      const storageScope = physicalFileScope(logicalScope);
+      const imported = await tavo.file.import({
+        multiple: false,
+        scope: storageScope,
+        extensions: DEVICE_IMAGE_EXTENSIONS,
+        conflict: 'rename'
+      });
+      const file = Array.isArray(imported) ? imported[0] : null;
+      if (!isCurrent()) {
+        if (file) await deleteIfExists(file.path || file.name, storageScope);
+        return;
+      }
+      if (!file) {
+        clearStatus();
+        return;
+      }
+      const deleteTarget = file.path || file.name;
+      const size = Number(file.size);
+      if (!file.name || !file.path || !String(file.mimeType || '').startsWith('image/')) {
+        await deleteIfExists(deleteTarget, storageScope);
+        throw new Error('The selected file is not a supported image.');
+      }
+      if (!Number.isFinite(size) || size <= 0 || size > MAX_IMAGE_BYTES) {
+        await deleteIfExists(deleteTarget, storageScope);
+        throw new Error('Choose a non-empty image no larger than 20 MB.');
+      }
+      selectedImportedFile = {
+        fileName: file.name,
+        path: file.path,
+        fileScope: storageScope,
+        mimeType: file.mimeType,
+        originalFileName: file.originalName || file.name,
+        size
+      };
+      imageUrlEl.value = '';
+      updatePickedImageUi();
+      setStatus(`Selected ${selectedImportedFile.originalFileName}. Save the entry to add it to the library.`, 'success');
+    } catch (error) {
+      console.error('[Tavo Visual Library] Device image import failed:', error);
+      if (isCurrent()) setStatus(`Could not import the selected image: ${error.message || 'Unknown error'}`, 'error');
+    }
   }
 
   async function saveImageUrl(url, logicalScope, entryName, campaignId = null) {
@@ -1884,8 +2037,8 @@
       return;
     }
 
-    if (!editingId && !imageUrl) {
-      setStatus('Please paste an image URL or a supported page URL for a new entry.', 'error');
+    if (!editingId && !imageUrl && !selectedImportedFile) {
+      setStatus('Choose an image from your device or provide an image URL for a new entry.', 'error');
       return;
     }
 
@@ -1906,7 +2059,9 @@
       }
 
       let savedFile = null;
-      if (imageUrl) {
+      if (selectedImportedFile) {
+        savedFile = selectedImportedFile;
+      } else if (imageUrl) {
         setStatus('Resolving and downloading image into Tavo…');
         savedFile = await saveImageUrl(imageUrl, scope, name, targetCampaignId);
       }
@@ -1938,7 +2093,13 @@
           delete nextEntry.campaignName;
         }
 
-        if (savedFile) nextEntry = { ...nextEntry, ...savedFile };
+        if (savedFile) {
+          nextEntry = { ...nextEntry, ...savedFile };
+          if (!savedFile.sourceUrl) {
+            delete nextEntry.sourceUrl;
+            delete nextEntry.resolvedImageUrl;
+          }
+        }
 
         if (logicalDestinationChanged) {
           let migratedFile = savedFile;
@@ -1986,6 +2147,7 @@
           }
         }
 
+        releaseSelectedImport();
         resetForm();
         await refreshCatalog();
         showPanel('library');
@@ -2012,6 +2174,7 @@
       const nextCatalog = getCatalog(scope, targetCampaignId);
       nextCatalog.push(newEntry);
       setCatalog(scope, nextCatalog, targetCampaignId);
+      releaseSelectedImport();
       resetForm();
       await refreshCatalog();
       showPanel('library');
@@ -2058,9 +2221,14 @@
       resetForm();
       showPanel('import');
     });
+    if (pickImageBtn) pickImageBtn.addEventListener('click', chooseImageFromDevice);
+    if (imageUrlEl) imageUrlEl.addEventListener('input', () => {
+      if (imageUrlEl.value.trim()) void discardSelectedImport();
+    });
     resetBtn.addEventListener('click', resetForm);
     formEl.addEventListener('submit', handleFormSubmit);
     if (scopeEl) scopeEl.addEventListener('change', () => {
+      void discardSelectedImport();
       if (scopeEl.value === 'campaign' && !state.activeCampaign) {
         scopeEl.value = 'chat';
         setStatus('Select or create a campaign before using Campaign scope.', 'info');
